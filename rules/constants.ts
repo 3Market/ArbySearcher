@@ -22,5 +22,6 @@ export const POOL_DEPLOYER_ADDRESS: ExchangeAddressMap = {
 
 export const MULTICALL_ADDRESS: ExchangeAddressMap = {
     [SupportedExchanges.Quickswap]: '0x6ccb9426CeceE2903FbD97fd833fD1D31c100292',
-    [SupportedExchanges.Uniswap]: '0x5BA1e12693Dc8F9c48aAD8770482f4739bEeD696',
+    [SupportedExchanges.Uniswap]:'0x1F98415757620B543A52E61c46B32eB19261F984'
+    // [SupportedExchanges.Uniswap]: '0x5BA1e12693Dc8F9c48aAD8770482f4739bEeD696',
 };
