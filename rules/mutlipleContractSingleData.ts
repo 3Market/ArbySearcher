@@ -2,8 +2,28 @@ import { BigNumber } from "ethers";
 import { Interface } from "ethers/lib/utils"
 import { Call } from './utils';
 import { UniswapInterfaceMulticall } from "../types/v3/UniswapInterfaceMulticall";
+import { resolve } from "path";
 
 const DEFAULT_GAS_REQUIRED = 1_000_000;
+
+export type MappedCallResponse<T> = [
+    BigNumber,
+    ([boolean, BigNumber, string] & {
+      success: boolean;
+      gasUsed: BigNumber;
+      returnData: string;
+    })[]
+  ] & {
+    blockNumber: BigNumber;
+    returnData: ([boolean, BigNumber, string] & {
+      success: boolean;
+      gasUsed: BigNumber;
+      returnData: T;
+    })[];
+  }
+
+export type CallResponse = MappedCallResponse<string>
+
 type MethodArg = string | number | BigNumber;
 type MethodArgs = Array<MethodArg | MethodArg[]>;
 type OptionalMethodInputs =
@@ -27,13 +47,13 @@ type OptionalMethodInputs =
   }
   
 
-export function executeMulticall(
+export function executeMulticall<T>(
     multicallContract: UniswapInterfaceMulticall,
     addresses: (string)[],
     contractInterface: Interface,
     methodName: string,
     callInputs?: OptionalMethodInputs
-  ) {
+  ) : Promise<MappedCallResponse<T>> {
 
     const fragment = contractInterface.getFunction(methodName);
     
@@ -49,5 +69,21 @@ export function executeMulticall(
 
     const callData =  contractInterface.encodeFunctionData(fragment, callInputs);
     const calls = addresses.map(address => { return { target: address, callData, gasLimit: BigNumber.from(DEFAULT_GAS_REQUIRED) }});
-    return multicallContract.callStatic.multicall(calls)
+    const result = multicallContract.callStatic.multicall(calls).then(response => {
+        if(!(response instanceof Object)) {
+            return response
+        }
+
+        const clone: any = Object.assign({}, response);
+        clone.returnData = response.returnData.map(v => {
+            const vClone: any = Object.assign({}, v);
+            vClone.returnData = contractInterface.decodeFunctionResult(methodName, v.returnData);
+            return vClone;
+        });
+
+        return clone;
+    })
+
+    //Hack: not sure how to return the exected map type
+    return result as any;
 }

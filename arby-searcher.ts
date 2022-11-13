@@ -12,7 +12,8 @@ import JSBI from 'jsbi';
 import { Fraction } from '@uniswap/sdk-core';
 import { Interface } from 'ethers/lib/utils';
 import { IUniswapV3PoolStateInterface } from './types/v3/v3-core/artifacts/contracts/interfaces/pool/IUniswapV3PoolState';
-import { executeMulticall } from './rules/mutlipleContractSingleData';
+import { MappedCallResponse, executeMulticall } from './rules/mutlipleContractSingleData';
+import { slot0Response } from './rules/decodeResults';
 
 env.config();
 
@@ -25,21 +26,37 @@ const arbySearch = async () => {
     const multicallAddress = MULTICALL_ADDRESS[SupportedExchanges.Uniswap];
     console.log('factory address:' + factoryAddress);
 
-    const feeAmount = FeeAmount.HIGH
+    const feeAmount = FeeAmount.LOW
     const poolAddress1 = computePoolAddress({factoryAddress: factoryAddress, tokenA: USDC_POLYGON, tokenB: USDT_POLYGON, fee: feeAmount});
     const poolAddress2 = computePoolAddress({factoryAddress: factoryAddress, tokenA: USDC_POLYGON, tokenB: DAI_POLYGON, fee: feeAmount});
+    // const poolAddress3 = computePoolAddress({factoryAddress: factoryAddress, tokenA: USDC_POLYGON, tokenB: USDT_POLYGON, fee: FeeAmount.HIGH});
+    // const poolAddress4 = computePoolAddress({factoryAddress: factoryAddress, tokenA: USDC_POLYGON, tokenB: DAI_POLYGON, fee: FeeAmount.HIGH});
     const poolAddresses = [
         poolAddress1, 
-        poolAddress2
+        poolAddress2,
+        // poolAddress3,
+        // poolAddress4
     ];
-    console.log('pool address: ' + poolAddress1);
+    console.log('pool address: ' + poolAddresses);
 
     const POOL_STATE_INTERFACE = new Interface(IUniswapV3PoolStateABI) as IUniswapV3PoolStateInterface
 
     const multicallContract = getMulticall(provider, multicallAddress, MulticallABI);
-    const results = await executeMulticall(multicallContract, poolAddresses, POOL_STATE_INTERFACE, 'liquidity').catch(err => console.log('error:' + err))
-    console.log(results);
+    const results = await executeMulticall(multicallContract, poolAddresses, POOL_STATE_INTERFACE, 'slot0').catch(err => console.log('error:' + err))
+    
+    if(!(results instanceof Object)) {
+        throw new Error('void response');
+    }
 
+    const resultsData = results as MappedCallResponse<slot0Response>;
+    console.log(`length: ${resultsData.length}`)
+
+    console.log(`block number: ${resultsData.blockNumber}`);
+    resultsData.returnData.forEach(returnData => {
+        console.log(`success: ${returnData.success}`);
+        console.log(`return data: ${returnData.returnData}`);
+        console.log(`sqrtPriceX96: ${returnData.returnData.sqrtPriceX96}`);
+    })
 }
 
 
