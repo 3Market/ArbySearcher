@@ -10,6 +10,7 @@
   },
   "keywords": [],
   "dependencies": {
+    "@types/lodash": "^4.14.188",
     "@uniswap/sdk-core": "^3.1.0",
     "@uniswap/v3-sdk": "^3.9.0",
     "dotenv": "^16.0.0",

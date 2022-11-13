@@ -5,7 +5,7 @@ import { abi as IUniswapV3PoolStateABI } from '@uniswap/v3-core/artifacts/contra
 import { abi as QuoterABI } from '@uniswap/v3-periphery/artifacts/contracts/lens/Quoter.sol/Quoter.json'
 import { computePoolAddress, FeeAmount, priceToClosestTick } from '@uniswap/v3-sdk'
 import { MULTICALL_ADDRESS, QUOTER_ADDRESS, SupportedExchanges, V3_CORE_FACTORY_ADDRESSES } from "./rules/constants";
-import { USDC_POLYGON, USDT_POLYGON, DAI_POLYGON } from "./rules/tokens";
+import { USDC_POLYGON, USDT_POLYGON, DAI_POLYGON, PRIMARY_ARBITRAGE_ASSETS } from "./rules/tokens";
 import env from 'dotenv'
 import { Interface } from 'ethers/lib/utils';
 import { IUniswapV3PoolStateInterface } from './types/v3/v3-core/artifacts/contracts/interfaces/pool/IUniswapV3PoolState';
@@ -15,6 +15,7 @@ import { getMulticallContract, getQuoterContract } from './rules/getContract';
 import { Token } from '@uniswap/sdk-core';
 import { Quoter } from './types/v3/v3-periphery/artifacts/contracts/lens';
 import { format } from 'path';
+import { buildPairs } from './rules/pairsGenerator';
 
 env.config();
 
@@ -27,11 +28,12 @@ const arbySearch = async () => {
     const quoterAddress = QUOTER_ADDRESS[SupportedExchanges.Uniswap];
     const tradeAmount = "1";
 
-    const tokens = await fetchQuickswapTokenlist();
-    console.log(tokens)
-
     console.log('factory address:' + factoryAddress);
 
+    const pairs = buildPairs(PRIMARY_ARBITRAGE_ASSETS, [FeeAmount.LOWEST, FeeAmount.LOW]);
+
+    pairs.forEach(x => console.log(`pair: ${x.name}`))
+    
     const feeAmount = FeeAmount.LOW
     const poolAddress1 = computePoolAddress({factoryAddress: factoryAddress, tokenA: USDC_POLYGON, tokenB: USDT_POLYGON, fee: feeAmount});
     const poolAddress2 = computePoolAddress({factoryAddress: factoryAddress, tokenA: USDC_POLYGON, tokenB: DAI_POLYGON, fee: feeAmount});
@@ -79,19 +81,6 @@ const getQuotedPrice = async (quoterContract: Quoter, inputAmount: string, input
     const parsedAmountIn = ethers.utils.parseUnits(inputAmount, inputToken.decimals);
     return quoterContract.callStatic.quoteExactInputSingle(inputToken.address, quoteToken.address, feeAmount, parsedAmountIn, 0);
 }
-
-const quickswapTokenlistUrl = 'https://unpkg.com/quickswap-default-token-list@latest/build/quickswap-default.tokenlist.json';
-const fetchQuickswapTokenlist = async () => {
-    
-    return fetch(quickswapTokenlistUrl)
-    .then((response) => {
-        if (!response.ok) {
-            throw new Error(response.statusText)
-        }
-        return response.json().then(r => r.tokens as Token[]);
-    })
-}
-
 
 
 arbySearch();

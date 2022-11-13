@@ -123,6 +123,29 @@ export const DAI_POLYGON = new Token(
     'Moss Carbon Credit'
   )
 
+  export const AAVE_POLYGON = new Token(
+    SupportedChainId.POLYGON,
+    "0xD6DF932A45C0f255f85145f286eA0b292B21C90B",
+    18,
+    'AAVE',
+    'Aave'
+  )
+
+  export const ASTRAFER_POLYGON = new Token(
+    SupportedChainId.POLYGON,
+    "0xDfCe1e99A31C4597a3f8A8945cBfa9037655e335",
+    18,
+    'ASTRAFER',
+    'Astrafer'
+  )
+
+  export const LIDO_POLYGON = new Token(
+    SupportedChainId.POLYGON,
+    "0xC3C7d422809852031b44ab29EEC9F1EfF2A58756",
+    18,
+    'LDO',
+    'Lido DAO Token'
+  )
 
   export const STABLE_ASSETS = [
     USDC_POLYGON,
@@ -143,4 +166,7 @@ export const DAI_POLYGON = new Token(
     LINK_POLYGON,
     QI_POLYGON,
     MCO2_POLYGON,
+    AAVE_POLYGON,
+    ASTRAFER_POLYGON,
+    LIDO_POLYGON
   ]
