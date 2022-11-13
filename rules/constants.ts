@@ -25,3 +25,10 @@ export const MULTICALL_ADDRESS: ExchangeAddressMap = {
     [SupportedExchanges.Uniswap]:'0x1F98415757620B543A52E61c46B32eB19261F984'
     // [SupportedExchanges.Uniswap]: '0x5BA1e12693Dc8F9c48aAD8770482f4739bEeD696',
 };
+
+export const QUOTER_ADDRESS: ExchangeAddressMap = {
+    [SupportedExchanges.Quickswap]: '0xa15F0D7377B2A0C0c10db057f641beD21028FC89',
+    [SupportedExchanges.Uniswap]:'0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6'
+    // [SupportedExchanges.Uniswap]: '0x5BA1e12693Dc8F9c48aAD8770482f4739bEeD696',
+};
+

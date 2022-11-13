@@ -2,10 +2,17 @@ import { getAddress } from "@ethersproject/address";
 import { Contract } from '@ethersproject/contracts';
 import { AddressZero } from '@ethersproject/constants'
 import type { JsonRpcProvider, JsonRpcSigner } from '@ethersproject/providers'
-import { UniswapInterfaceMulticall } from "../types/v3/UniswapInterfaceMulticall";
 
-export function getMulticall(provider: JsonRpcProvider, address: string, abi: any): UniswapInterfaceMulticall { 
+import { UniswapInterfaceMulticall } from "../types/v3/UniswapInterfaceMulticall";
+import { Quoter } from "../types/v3/v3-periphery/artifacts/contracts/lens";
+
+
+export function getMulticallContract(address: string, abi: any, provider: JsonRpcProvider): UniswapInterfaceMulticall { 
     return getContract(address, abi, provider, undefined) as UniswapInterfaceMulticall;
+}
+
+export function getQuoterContract(address: string, abi: any, provider: JsonRpcProvider): Quoter {
+    return getContract(address, abi, provider, undefined) as Quoter;
 }
 
 // returns the checksummed address if the address is valid, otherwise returns false
