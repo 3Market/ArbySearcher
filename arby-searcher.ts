@@ -27,6 +27,9 @@ const arbySearch = async () => {
     const quoterAddress = QUOTER_ADDRESS[SupportedExchanges.Uniswap];
     const tradeAmount = "1";
 
+    const tokens = await fetchQuickswapTokenlist();
+    console.log(tokens)
+
     console.log('factory address:' + factoryAddress);
 
     const feeAmount = FeeAmount.LOW
@@ -75,6 +78,18 @@ function formatPrice(amount: BigNumber, decimals: number) {
 const getQuotedPrice = async (quoterContract: Quoter, inputAmount: string, inputToken: Token, quoteToken: Token, feeAmount: FeeAmount) => { 
     const parsedAmountIn = ethers.utils.parseUnits(inputAmount, inputToken.decimals);
     return quoterContract.callStatic.quoteExactInputSingle(inputToken.address, quoteToken.address, feeAmount, parsedAmountIn, 0);
+}
+
+const quickswapTokenlistUrl = 'https://unpkg.com/quickswap-default-token-list@latest/build/quickswap-default.tokenlist.json';
+const fetchQuickswapTokenlist = async () => {
+    
+    return fetch(quickswapTokenlistUrl)
+    .then((response) => {
+        if (!response.ok) {
+            throw new Error(response.statusText)
+        }
+        return response.json().then(r => r.tokens as Token[]);
+    })
 }
 
 
