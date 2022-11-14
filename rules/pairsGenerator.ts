@@ -4,10 +4,8 @@ import _ from "lodash";
 
 export type PairData = {
     name: string,
-    token0Address: string,
-    token0Decimals: number,
-    token1Address: string,
-    token1Decimals: number,
+    token0: Token,
+    token1: Token,
     feeAmount: FeeAmount | null
 }
 
@@ -39,10 +37,8 @@ function combineAllPairs(tokens: Token[], feeAmounts: FeeAmount[]) {
             pairs.push(
                 {
                     name,
-                    token0Address: token0.address,
-                    token0Decimals: token0.decimals,
-                    token1Address: token1.address,
-                    token1Decimals: token1.decimals,
+                    token0: token0,
+                    token1: token1,
                     feeAmount: feeAmount
                 }
             )

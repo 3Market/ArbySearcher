@@ -24,8 +24,8 @@ export type MappedCallResponse<T> = [
 
 export type CallResponse = MappedCallResponse<string>
 
-type MethodArg = string | number | BigNumber;
-type MethodArgs = Array<MethodArg | MethodArg[]>;
+export type MethodArg = string | number | BigNumber;
+export type MethodArgs = Array<MethodArg | MethodArg[]>;
 type OptionalMethodInputs =
   | Array<MethodArg | MethodArg[] | undefined>
   | undefined;
@@ -47,7 +47,7 @@ type OptionalMethodInputs =
   }
   
 
-export function executeMulticall<T>(
+export function multipleContractSingleValue<T>(
     multicallContract: UniswapInterfaceMulticall,
     addresses: (string)[],
     contractInterface: Interface,
@@ -86,4 +86,47 @@ export function executeMulticall<T>(
 
     //Hack: not sure how to return the exected map type
     return result as any;
+}
+
+export function singleContractMultipleValue<T>(
+  multicallContract: UniswapInterfaceMulticall,
+  address: string,
+  contractInterface: Interface,
+  methodName: string,
+  callInputs: OptionalMethodInputs[] = [undefined]
+) : Promise<MappedCallResponse<T>> {
+
+  const fragment = contractInterface.getFunction(methodName);
+  
+  //TODO: This code was translated from react, where the state can be null
+  //TODO: verify whether we actually need to validate these properties
+  if(!fragment) {
+      throw new Error(`Invalid Fragment: '${fragment}'`)
+  }
+
+  const callDatas = callInputs.map(i => {
+    if(!isValidMethodArgs(i)) {
+      throw new Error(`Invalid Method Args: '${i}'`)
+    }
+    return contractInterface.encodeFunctionData(fragment, i);
+  });
+
+  const calls = callDatas.map((callData, i) => { return { target: address, callData, gasLimit: BigNumber.from(DEFAULT_GAS_REQUIRED) }});
+  const result = multicallContract.callStatic.multicall(calls).then(response => {
+      if(!(response instanceof Object)) {
+          return response
+      }
+
+      const clone: any = Object.assign({}, response);
+      clone.returnData = response.returnData.map(v => {
+          const vClone: any = Object.assign({}, v);
+          vClone.returnData = contractInterface.decodeFunctionResult(methodName, v.returnData);
+          return vClone;
+      });
+
+      return clone;
+  })
+
+  //Hack: not sure how to return the exected map type
+  return result as any;
 }
