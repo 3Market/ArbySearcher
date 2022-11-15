@@ -1,3 +1,4 @@
+import { Pool } from "@uniswap/v3-sdk";
 import { BigNumber } from "ethers";
 import { slot0Response } from "./decodeResults";
 import { MappedCallResponse } from "./mutlipleContractSingleData";
@@ -22,5 +23,11 @@ export function logQuotes(slot0Data: MappedCallResponse<BigNumber>) {
     slot0Data.returnData.forEach(returnData => {
         console.log(`success: ${returnData.success}`);
         console.log(`return data: ${returnData.returnData}`);
+    })
+}
+
+export function logPools(pools: Pool[]) {
+    pools.forEach(p => {
+        console.log(`${p.token0.symbol}-${p.token1.symbol}:${p.fee} t0 price: ${p.token0Price.toSignificant(6)} t1 price: ${p.token1Price.toSignificant(6)}`)
     })
 }
