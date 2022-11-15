@@ -1,8 +1,8 @@
-import { Token } from "@uniswap/sdk-core";
+import { SupportedChainId, Token } from "@uniswap/sdk-core";
 import { FeeAmount } from "@uniswap/v3-sdk";
 import _ from "lodash";
 
-export type PairData = {
+export interface PairData {
     name: string,
     token0: Token,
     token1: Token,
@@ -17,7 +17,11 @@ export const fetchQuickswapTokenlist = async () => {
         if (!response.ok) {
             throw new Error(response.statusText)
         }
-        return response.json().then(r => r.tokens as Token[]);
+        return response.json()
+                .then(r => r.tokens.map((t: any) => {
+                    return new Token(SupportedChainId.POLYGON, t.address, t.decimals, t.symbol);
+                })
+        );
     })
 }
 

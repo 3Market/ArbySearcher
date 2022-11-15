@@ -4,7 +4,9 @@ import { Call } from './utils';
 import { UniswapInterfaceMulticall } from "../types/v3/UniswapInterfaceMulticall";
 import { resolve } from "path";
 
-const DEFAULT_GAS_REQUIRED = 1_000_000;
+//Note: Multicall will throw an error if the contract call exceeds the expected provisioned gas required
+// so we jack the number up insanely high to assure execution
+const DEFAULT_STATIC_CALL_GAS_REQUIRED = 1_000_000_000_000;
 
 export type MappedCallResponse<T> = [
     BigNumber,
@@ -68,7 +70,7 @@ export function multipleContractSingleValue<T>(
     }
 
     const callData =  contractInterface.encodeFunctionData(fragment, callInputs);
-    const calls = addresses.map(address => { return { target: address, callData, gasLimit: BigNumber.from(DEFAULT_GAS_REQUIRED) }});
+    const calls = addresses.map(address => { return { target: address, callData, gasLimit: BigNumber.from(DEFAULT_STATIC_CALL_GAS_REQUIRED) }});
     const result = multicallContract.callStatic.multicall(calls).then(response => {
         if(!(response instanceof Object)) {
             return response
@@ -111,7 +113,7 @@ export function singleContractMultipleValue<T>(
     return contractInterface.encodeFunctionData(fragment, i);
   });
 
-  const calls = callDatas.map((callData, i) => { return { target: address, callData, gasLimit: BigNumber.from(DEFAULT_GAS_REQUIRED) }});
+  const calls = callDatas.map((callData, i) => { return { target: address, callData, gasLimit: BigNumber.from(DEFAULT_STATIC_CALL_GAS_REQUIRED) }});
   const result = multicallContract.callStatic.multicall(calls).then(response => {
       if(!(response instanceof Object)) {
           return response
