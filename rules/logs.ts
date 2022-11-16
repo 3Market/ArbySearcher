@@ -1,5 +1,6 @@
 import { Pool } from "@uniswap/v3-sdk";
 import { BigNumber } from "ethers";
+import { ArbitrageMap } from "./abitrage";
 import { slot0Response } from "./decodeResults";
 import { MappedCallResponse } from "./mutlipleContractSingleData";
 
@@ -23,6 +24,15 @@ export function logQuotes(slot0Data: MappedCallResponse<BigNumber>) {
     slot0Data.returnData.forEach(returnData => {
         console.log(`success: ${returnData.success}`);
         console.log(`return data: ${returnData.returnData}`);
+    })
+}
+
+export function logArbitrageMap(map: ArbitrageMap) {
+    Object.keys(map).forEach(k => {
+        console.log(`key: ${k}`);
+        map[k].forEach(v => {
+            console.log(`\t\t ${v.inputToken.name}-${v.outputToken.name} price: ${v.outputAmount.toSignificant(6)}`);
+        })
     })
 }
 

@@ -23,6 +23,7 @@ import { getQuotedPrice, getQuoterParams } from './rules/quoterRule';
 import type { JsonRpcProvider } from '@ethersproject/providers'
 import { getAvailableUniPools, getPools, PoolData } from './rules/pool';
 import { UniswapInterfaceMulticall } from './types/v3/UniswapInterfaceMulticall';
+import { calculateSuperficialArbitrages } from './rules/abitrage';
 
 
 env.config();
@@ -56,10 +57,10 @@ const arbySearch = async () => {
     const multicallContract = getMulticallContract(multicallAddress, MulticallABI, provider);
 
     const pools = await getPools(availablePoolData, multicallContract);
-
     logPools(pools);
-    //console.log(pools);
 
+    calculateSuperficialArbitrages(pools);
+    
     //logSlot0Data(slot0Response as MappedCallResponse<slot0Response>);
 
     const QUOTER_INTERFACE = new Interface(QuoterABI) as QuoterInterface

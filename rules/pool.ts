@@ -1,7 +1,7 @@
 import { BigNumber } from 'ethers';
 import { abi as IUniswapV3PoolStateABI } from '@uniswap/v3-core/artifacts/contracts/interfaces/pool/IUniswapV3PoolState.sol/IUniswapV3PoolState.json'
 import { abi as QuoterABI } from '@uniswap/v3-periphery/artifacts/contracts/lens/Quoter.sol/Quoter.json'
-import { computePoolAddress, Pool } from '@uniswap/v3-sdk'
+import { computePoolAddress, FeeAmount, Pool, Tick, TickConstructorArgs, TickDataProvider } from '@uniswap/v3-sdk'
 import {  QUOTER_ADDRESS, SupportedExchanges } from "./constants";
 import { Interface } from 'ethers/lib/utils';
 import { IUniswapV3PoolStateInterface } from '../types/v3/v3-core/artifacts/contracts/interfaces/pool/IUniswapV3PoolState';
@@ -13,10 +13,28 @@ import { PairData } from './pairsGenerator';
 import { getQuotedPrice } from './quoterRule';
 import type { JsonRpcProvider } from '@ethersproject/providers'
 import { UniswapInterfaceMulticall } from '../types/v3/UniswapInterfaceMulticall';
+import { BigintIsh, sqrt, Token } from '@uniswap/sdk-core';
+import { pool } from '../types/v3/v3-core/artifacts/contracts/interfaces';
 
 export interface PoolData extends PairData {
     poolAddress: string,
     isQuotable: boolean,
+}
+
+export class ExtendedPool extends Pool {
+    poolAddress: string;
+    constructor(
+        poolAddress: string,
+        tokenA: Token, 
+        tokenB: Token, 
+        fee: FeeAmount, 
+        sqrtRatioX96: BigintIsh, 
+        liquidity: BigintIsh, 
+        tickCurrent: number, 
+        ticks?: TickDataProvider | (Tick | TickConstructorArgs)[]) {
+            super(tokenA, tokenB, fee, sqrtRatioX96, liquidity, tickCurrent, ticks)
+            this.poolAddress = poolAddress;
+    }
 }
 
 export const getPools = async(poolData: PoolData[], multicallContract: UniswapInterfaceMulticall) => {
@@ -44,7 +62,14 @@ export const getPools = async(poolData: PoolData[], multicallContract: UniswapIn
     return poolData.map((p, i) => { 
         const poolState = slot0Response.returnData[i].returnData;
         const liquidity = liquiditiesResponse.returnData[i].returnData[0];
-        return new Pool(p.token0, p.token1, p.feeAmount ?? 0, poolState.sqrtPriceX96.toString(), liquidity.toString(), poolState.tick); 
+        return new ExtendedPool(
+            p.poolAddress,
+            p.token0,
+            p.token1,
+            p.feeAmount ?? 0,
+            poolState.sqrtPriceX96.toString(),
+            liquidity.toString(),
+            poolState.tick); 
     });
 }
 
