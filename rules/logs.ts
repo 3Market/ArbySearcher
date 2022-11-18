@@ -30,13 +30,15 @@ export function logQuotes(slot0Data: MappedCallResponse<BigNumber>) {
 export function logArbitrageMap(map: ArbitrageInputMap) {
     Object.keys(map).forEach(inputKey => {
         const inputNode = map[inputKey];
-        console.log(`Token: ${inputNode.inputToken.name} key: ${inputKey}`);
+        const i = inputNode.inputToken;
+        console.log(`Token: ${i.name} key: ${inputKey}`);
         const outputMap = inputNode.outputMap;
         Object.keys(outputMap).forEach(outputKey => {
             const outputNode = outputMap[outputKey];
+            const o = outputNode.outputToken;
             console.log(`\t ${outputNode.outputToken.name}`);
-            outputNode.details.forEach(detail => {
-                console.log(`\t\t ${inputNode.inputToken.symbol}-${outputNode.outputToken.symbol} price: ${detail.outputAmount.toSignificant(6)} Pool Address: ${detail.poolAddress}`); 
+            outputNode.details.forEach(d => {
+                console.log(`\t\t ${i.symbol}-${o.symbol} price: ${d.outputAmount.toSignificant(6)} Liquidity:${d.liquidity} Pool Address: ${d.poolAddress}`); 
             })
         })
     })

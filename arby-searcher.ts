@@ -59,7 +59,7 @@ const arbySearch = async () => {
     const pools = await getPools(availablePoolData, multicallContract);
     logPools(pools);
 
-    calculateSuperficialArbitrages(pools);
+    calculateSuperficialArbitrages(pools.filter(x => x.liquidity.toString() !== '0'));
     
     //logSlot0Data(slot0Response as MappedCallResponse<slot0Response>);
 

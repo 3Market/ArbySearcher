@@ -9,6 +9,7 @@ import { Price, Token } from '@uniswap/sdk-core';
 import { logArbitrageMap } from './logs';
 import { Queue } from 'queue-typescript';
 import { defaultMaxListeners } from 'events';
+import { BigNumber } from 'ethers';
 
 
 export type ArbitrageInputMap = Map<ArbitrageInputNode>
@@ -16,17 +17,18 @@ export type ArbitrageOutputDetailMap = Map<ArbitrageOutputDetail>
 export type Map<TValue> = {[key:string]:TValue }
 
  interface ArbitrageInputNode {
-    inputToken: Token,
+    inputToken: Token
     outputMap: ArbitrageOutputDetailMap
  }
 
  interface ArbitrageOutputDetail {
-    outputToken: Token,
+    outputToken: Token
     details: ArbitragePoolDetail[]
  }
 
  interface ArbitragePoolDetail {
-    poolAddress: string,
+    poolAddress: string
+    liquidity: string
     outputAmount: Price<Token, Token>
  }
 
@@ -107,6 +109,7 @@ function populateArbitrageDetails(map: ArbitrageInputMap, inputToken: Token, out
 
     outputMap[outputKey].details.push({
         poolAddress: pool.poolAddress,
+        liquidity: pool.liquidity.toString(),
         //The price is how much you will get out given you put in 1 in the other side
         //so to get the output amount is equvalent to the input tokens price
         //Ref: WMATIC-USDT:10000 t0 price: 0.93758 t1 price: 1.06658
@@ -135,8 +138,7 @@ function getArbitrageMapOrderOutputDesc(pools: ExtendedPool[]) {
         outputKeys.forEach(outputKey => {
             const outputNode = node.outputMap[outputKey];
             outputNode.details = outputNode.details 
-            .map((x,i) => { if(!x.outputAmount)console.log(`k:${inputKey} i:${i}`); return x})
-            .sort((a,b) => a.outputAmount.asFraction.greaterThan(b.outputAmount) ? 0 : 1);
+              .sort((a,b) => a.outputAmount.greaterThan(b.outputAmount) ? -1 : 1)
         })
     })
 
