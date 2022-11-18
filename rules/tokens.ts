@@ -5,7 +5,7 @@ export const USDC_POLYGON = new Token(
     '0x2791bca1f2de4661ed88a30c99a7a9449aa84174',
     6,
     'USDC',
-    'USD//C'
+    'USD Coin'
  )
 
 export const DAI_POLYGON = new Token(
