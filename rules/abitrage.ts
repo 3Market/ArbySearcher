@@ -16,6 +16,7 @@ export type ArbitrageInputMap = Map<ArbitrageInputNode>
 export type ArbitrageOutputDetailMap = Map<ArbitrageOutputDetail>
 export type Map<TValue> = {[key:string]:TValue }
 export type PathMap = Map<Map<Map<string[][]>>>
+export type CircuitMap = Map<string[][]>;
 
  interface ArbitrageInputNode {
     inputToken: Token
@@ -64,17 +65,45 @@ export function calculateSuperficialArbitrages(pools: ExtendedPool[], depth = 2)
     const tokens = from(pools.flatMap(x => [x.token0, x.token1])).distinct().toArray();
     const poolByTokenAddress = getArbitrageMapOrderOutputDesc(pools);
     
-    logArbitrageMap(poolByTokenAddress);
+    //logArbitrageMap(poolByTokenAddress);
     console.log('---------------------------------');
     const pathMap = buildPathMap(poolByTokenAddress, 3);
     console.log('---------------------------------');
-    logPathMap(pathMap);
+    //logPathMap(pathMap);
+
+    const circuits = getCircuits(pathMap, poolByTokenAddress);
+    logCircuits(circuits);
+}
+
+function logCircuits(circuitMap: CircuitMap) {
+  for(let key in circuitMap)  {
+    console.log(`circuits for key: ${key}`);
+    circuitMap[key].forEach(path => {
+        console.log(`\t${key}->${path.join('->')}`)
+    }) 
+  }  
+}
+
+function getCircuits(pathMap: PathMap, poolByTokenAddress: ArbitrageInputMap) {
+    const circuitMap: CircuitMap = {};
+    for (let key in poolByTokenAddress) {
+        circuitMap[key] = [];
+        const circuitPaths = pathMap[key][key];
+        for(let depth in circuitPaths) {
+            console.log('Any');
+            circuitPaths[depth].forEach(path => circuitMap[key].push(path));
+        }
+    }
+
+    return circuitMap;
 }
 
 //Gets all the simple paths up to K depth
 // 1. Iterate over all the nodes, add the node neighbors as a path
 // 2. Foreach additional iteration, iterate over all the neighbor paths from the depth before which end in my node and then append all my neighbors.
-function buildPathMap(poolByTokenAddress: ArbitrageInputMap,  maxDepth: number = 7) {
+// A-C A-D B-C C-A C-B D-A
+// 0 A ->
+export function buildPathMap(poolByTokenAddress: ArbitrageInputMap,  maxDepth: number = 7) {
    const pathMap: PathMap = {}
    for(let key in poolByTokenAddress) {
       pathMap[key] = {}; 
@@ -100,6 +129,7 @@ function buildPathMap(poolByTokenAddress: ArbitrageInputMap,  maxDepth: number =
                 const previousPaths = previousIOPathMap[ppi]
                 const [pathEnd] = previousPaths.slice(-1);
                 console.log(`Adding Paths to ${poolByTokenAddress[inputKey].inputToken.symbol}-${poolByTokenAddress[inputKey].outputMap[outputKey].outputToken.symbol} at depth ${i}`);
+                console.log(`key: ${poolByTokenAddress[inputKey].inputToken.address}`);
                 for(let neighbor in poolByTokenAddress[pathEnd].outputMap) {
                     const newPath = previousPaths.slice(0);
                     newPath.push(neighbor);

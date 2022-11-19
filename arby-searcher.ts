@@ -40,8 +40,8 @@ const arbySearch = async () => {
     //const tradableTokens = await fetchQuickswapTokenlist();
     //const pairs = buildPairs(tradableTokens, [FeeAmount.LOWEST, FeeAmount.LOW]);
 
-    //const pairs = buildPairs(PRIMARY_ARBITRAGE_ASSETS, [FeeAmount.LOWEST, FeeAmount.LOW, FeeAmount.MEDIUM, FeeAmount.HIGH]);
-    const pairs = buildPairs([USDC_POLYGON, USDT_POLYGON, DAI_POLYGON], [FeeAmount.LOWEST, FeeAmount.LOW]);
+    const pairs = buildPairs(PRIMARY_ARBITRAGE_ASSETS, [FeeAmount.LOWEST, FeeAmount.LOW, FeeAmount.MEDIUM, FeeAmount.HIGH]);
+    //const pairs = buildPairs([USDC_POLYGON, USDT_POLYGON, DAI_POLYGON], [FeeAmount.LOWEST, FeeAmount.LOW]);
 
     console.log(pairs.length);
     
@@ -59,7 +59,9 @@ const arbySearch = async () => {
     const pools = await getPools(availablePoolData, multicallContract);
     logPools(pools);
 
-    calculateSuperficialArbitrages(pools.filter(x => x.liquidity.toString() !== '0'));
+    const poolsWithliquidity = pools.filter(x => x.liquidity.toString() !== '0');
+    console.log(`num of pools with liquidity: ${poolsWithliquidity.length}`);
+    calculateSuperficialArbitrages(poolsWithliquidity);
     
     //logSlot0Data(slot0Response as MappedCallResponse<slot0Response>);
 
