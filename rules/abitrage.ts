@@ -67,26 +67,44 @@ export function calculateSuperficialArbitrages(pools: ExtendedPool[], depth = 2)
         
 }
 
-// function buildPathMap(poolByTokenAddress: ArbitrageInputMap, inputToken: Token, outputToken: Token,  maxDepth: number = 7) {
-//    const visited:Map<boolean> = {};
-//    const simplePaths: string[] = [];
-   
-//    const queue = new Queue<ArbitrageInputNode[]>(poolByTokenAddress[inputToken.address])
-   
-   
-   
-//    while (queue.length > 0) {
-//      const node = queue.dequeue();
-//      //Hack, all the node input addresses should be the same so we check the first
-//      const nodeAddress = node[0].inputToken.address;
-//      if(nodeAddress == outputToken.address) {
-//         //Add the Paths and continue
-//      }
-//      if(visited[nodeAddress]) {
-//         continue;
-//      }
-//    }
-// }
+export type PathMap = Map<Map<Map<string[][]>>>
+//Gets all the simple paths up to K depth
+// 1. Iterate over all the nodes, add the node neighbors as a path
+// 2. Foreach additional iteration, iterate over all the neighbor paths from the depth before which end in my node and then append all my neighbors.
+function buildPathMap(poolByTokenAddress: ArbitrageInputMap,  maxDepth: number = 7) {
+   const pathMap: PathMap = {}
+   for(let key in poolByTokenAddress) {
+      pathMap[key] = {}; 
+      for(let outputKey in poolByTokenAddress[key].outputMap) {
+        pathMap[key][outputKey] = {};
+        pathMap[key][outputKey][0] = [[outputKey]];
+      }
+   }
+
+   for(let i = 1; i < maxDepth; i++) {
+      for(let inputKey in poolByTokenAddress) {
+        for(let outputKey in poolByTokenAddress) {
+            //Initialize
+            pathMap[inputKey][outputKey] = pathMap[inputKey][outputKey] || {};
+            const ioPathMap = pathMap[inputKey][outputKey];
+            ioPathMap[i] = ioPathMap[i] || {};
+            const currentIOPathMap = ioPathMap[i];
+            const previousIndex = i - 1;
+            // All the new paths are equal to all the previous paths 
+            // plus all of the neighbors of the node which the previous path ended with
+
+            for(let previousPaths of ioPathMap[previousIndex]) {
+                const [pathEnd] = previousPaths.slice(-1);
+                for(let neighbor of poolByTokenAddress[pathEnd].outputMap) {
+                    const newPath = previousPaths.slice(0);
+                    newPath.push(neighbor);
+                    currentIOPathMap.push(newPath);
+                }
+            }
+        }
+      }
+   }
+}
 
 function populateArbitrageDetails(map: ArbitrageInputMap, inputToken: Token, outputToken: Token, pool: ExtendedPool, isReverse:boolean) {
     const inputKey = inputToken.address;
@@ -143,15 +161,4 @@ function getArbitrageMapOrderOutputDesc(pools: ExtendedPool[]) {
     })
 
     return aribtrageMap;
-}
-
-
-function minComparator(a: Pool, b: Pool) {
-    return 1;
-    //return a.token1Price.subtract(b.token1Price).toFixed(a.token1.decimals);
-}
-
-function maxComparator(a: Pool, b: Pool) {
-    return 1;
-    //return a.token1Price.subtract(b.token1Price).toFixed(a.token1.decimals);
 }
