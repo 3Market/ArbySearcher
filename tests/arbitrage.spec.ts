@@ -60,6 +60,4 @@ describe('buildPathMap', () => {
         expect(pathMap[C][B]["0"][0][0]).toEqual(B);
         expect(pathMap[D][A]["0"][0][0]).toEqual(A);
     });
-
-    //buildPathMap()
 })

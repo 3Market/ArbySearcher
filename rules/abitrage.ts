@@ -101,8 +101,6 @@ function getCircuits(pathMap: PathMap, poolByTokenAddress: ArbitrageInputMap) {
 //Gets all the simple paths up to K depth
 // 1. Iterate over all the nodes, add the node neighbors as a path
 // 2. Foreach additional iteration, iterate over all the neighbor paths from the depth before which end in my node and then append all my neighbors.
-// A-C A-D B-C C-A C-B D-A
-// 0 A ->
 export function buildPathMap(poolByTokenAddress: ArbitrageInputMap,  maxDepth: number = 7) {
    const pathMap: PathMap = {}
    for(let inputKey in poolByTokenAddress) {
@@ -123,7 +121,6 @@ export function buildPathMap(poolByTokenAddress: ArbitrageInputMap,  maxDepth: n
             const ioPathMap = pathMap[inputKey][outputKey] || {};
             //Initialize depth if it doesn't exist
             ioPathMap[i] = ioPathMap[i] || [];
-            const currentIOPathMap = ioPathMap[i];
             const previousIOPathMap = ioPathMap[i-1];
             // All the new paths are equal to all the previous paths 
             // plus all of the neighbors of the node which the previous path ended with
@@ -131,14 +128,13 @@ export function buildPathMap(poolByTokenAddress: ArbitrageInputMap,  maxDepth: n
             for(let ppi in previousIOPathMap) {
                 const previousPaths = previousIOPathMap[ppi]
                 const [pathEnd] = previousPaths.slice(-1);
-                console.log(`Adding Paths to ${poolByTokenAddress[inputKey].inputToken.symbol}-${poolByTokenAddress[inputKey].outputMap[outputKey].outputToken.symbol} at depth ${i}`);
-                console.log(`key: ${poolByTokenAddress[inputKey].inputToken.address}`);
                 for(let neighbor in poolByTokenAddress[pathEnd].outputMap) {
+                    //Initialize Map if it doesn't exist
+                    pathMap[inputKey][neighbor][i] = pathMap[inputKey][neighbor][i] || [];
                     const newPath = previousPaths.slice(0);
                     newPath.push(neighbor);
-
                     console.log(`\t Path: ${newPath.join('->')}`);
-                    currentIOPathMap.push(newPath);
+                    pathMap[inputKey][neighbor][i].push(newPath);
                 }
             }
         }
