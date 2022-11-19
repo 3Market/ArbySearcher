@@ -105,11 +105,14 @@ function getCircuits(pathMap: PathMap, poolByTokenAddress: ArbitrageInputMap) {
 // 0 A ->
 export function buildPathMap(poolByTokenAddress: ArbitrageInputMap,  maxDepth: number = 7) {
    const pathMap: PathMap = {}
-   for(let key in poolByTokenAddress) {
-      pathMap[key] = {}; 
-      for(let outputKey in poolByTokenAddress[key].outputMap) {
-        pathMap[key][outputKey] = {};
-        pathMap[key][outputKey][0] = [[outputKey]];
+   for(let inputKey in poolByTokenAddress) {
+      pathMap[inputKey] = {}; 
+      for(let outputKey in poolByTokenAddress) {
+        pathMap[inputKey][outputKey] = {};
+        pathMap[inputKey][outputKey][0] = [];
+        if(poolByTokenAddress[inputKey].outputMap[outputKey]) {
+            pathMap[inputKey][outputKey][0].push([outputKey]);
+        }
       }
    }
 
