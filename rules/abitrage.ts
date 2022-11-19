@@ -6,7 +6,7 @@ import { pool } from '../types/v3/v3-core/artifacts/contracts/interfaces';
 import { ExtendedPool } from './pool';
 import Heap from 'heap';
 import { Price, Token } from '@uniswap/sdk-core';
-import { logArbitrageMap } from './logs';
+import { logArbitrageMap, logPathMap } from './logs';
 import { Queue } from 'queue-typescript';
 import { defaultMaxListeners } from 'events';
 import { BigNumber } from 'ethers';
@@ -15,6 +15,7 @@ import { BigNumber } from 'ethers';
 export type ArbitrageInputMap = Map<ArbitrageInputNode>
 export type ArbitrageOutputDetailMap = Map<ArbitrageOutputDetail>
 export type Map<TValue> = {[key:string]:TValue }
+export type PathMap = Map<Map<Map<string[][]>>>
 
  interface ArbitrageInputNode {
     inputToken: Token
@@ -64,10 +65,12 @@ export function calculateSuperficialArbitrages(pools: ExtendedPool[], depth = 2)
     const poolByTokenAddress = getArbitrageMapOrderOutputDesc(pools);
     
     logArbitrageMap(poolByTokenAddress);
-        
+    console.log('---------------------------------');
+    const pathMap = buildPathMap(poolByTokenAddress, 3);
+    console.log('---------------------------------');
+    logPathMap(pathMap);
 }
 
-export type PathMap = Map<Map<Map<string[][]>>>
 //Gets all the simple paths up to K depth
 // 1. Iterate over all the nodes, add the node neighbors as a path
 // 2. Foreach additional iteration, iterate over all the neighbor paths from the depth before which end in my node and then append all my neighbors.
@@ -84,26 +87,32 @@ function buildPathMap(poolByTokenAddress: ArbitrageInputMap,  maxDepth: number =
    for(let i = 1; i < maxDepth; i++) {
       for(let inputKey in poolByTokenAddress) {
         for(let outputKey in poolByTokenAddress) {
-            //Initialize
-            pathMap[inputKey][outputKey] = pathMap[inputKey][outputKey] || {};
-            const ioPathMap = pathMap[inputKey][outputKey];
-            ioPathMap[i] = ioPathMap[i] || {};
+            
+            const ioPathMap = pathMap[inputKey][outputKey] || {};
+            //Initialize depth if it doesn't exist
+            ioPathMap[i] = ioPathMap[i] || [];
             const currentIOPathMap = ioPathMap[i];
-            const previousIndex = i - 1;
+            const previousIOPathMap = ioPathMap[i-1];
             // All the new paths are equal to all the previous paths 
             // plus all of the neighbors of the node which the previous path ended with
 
-            for(let previousPaths of ioPathMap[previousIndex]) {
+            for(let ppi in previousIOPathMap) {
+                const previousPaths = previousIOPathMap[ppi]
                 const [pathEnd] = previousPaths.slice(-1);
-                for(let neighbor of poolByTokenAddress[pathEnd].outputMap) {
+                console.log(`Adding Paths to ${poolByTokenAddress[inputKey].inputToken.symbol}-${poolByTokenAddress[inputKey].outputMap[outputKey].outputToken.symbol} at depth ${i}`);
+                for(let neighbor in poolByTokenAddress[pathEnd].outputMap) {
                     const newPath = previousPaths.slice(0);
                     newPath.push(neighbor);
+
+                    console.log(`\t Path: ${newPath.join('->')}`);
                     currentIOPathMap.push(newPath);
                 }
             }
         }
       }
    }
+
+   return pathMap;
 }
 
 function populateArbitrageDetails(map: ArbitrageInputMap, inputToken: Token, outputToken: Token, pool: ExtendedPool, isReverse:boolean) {

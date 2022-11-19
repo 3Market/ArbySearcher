@@ -40,8 +40,8 @@ const arbySearch = async () => {
     //const tradableTokens = await fetchQuickswapTokenlist();
     //const pairs = buildPairs(tradableTokens, [FeeAmount.LOWEST, FeeAmount.LOW]);
 
-    const pairs = buildPairs(PRIMARY_ARBITRAGE_ASSETS, [FeeAmount.LOWEST, FeeAmount.LOW, FeeAmount.MEDIUM, FeeAmount.HIGH]);
-    //const pairs = buildPairs([USDC_POLYGON, USDT_POLYGON, DAI_POLYGON], [FeeAmount.LOWEST, FeeAmount.LOW]);
+    //const pairs = buildPairs(PRIMARY_ARBITRAGE_ASSETS, [FeeAmount.LOWEST, FeeAmount.LOW, FeeAmount.MEDIUM, FeeAmount.HIGH]);
+    const pairs = buildPairs([USDC_POLYGON, USDT_POLYGON, DAI_POLYGON], [FeeAmount.LOWEST, FeeAmount.LOW]);
 
     console.log(pairs.length);
     

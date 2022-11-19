@@ -1,6 +1,6 @@
 import { Pool } from "@uniswap/v3-sdk";
 import { BigNumber } from "ethers";
-import { ArbitrageInputMap } from "./abitrage";
+import { ArbitrageInputMap, PathMap } from "./abitrage";
 import { slot0Response } from "./decodeResults";
 import { MappedCallResponse } from "./mutlipleContractSingleData";
 
@@ -25,6 +25,25 @@ export function logQuotes(slot0Data: MappedCallResponse<BigNumber>) {
         console.log(`success: ${returnData.success}`);
         console.log(`return data: ${returnData.returnData}`);
     })
+}
+
+export function logPathMap(map: PathMap) {
+    Object.keys(map).forEach(inputKey => {
+        console.log(`key: ${inputKey} has paths`);
+        const inputNode = map[inputKey];
+
+        Object.keys(inputNode).forEach(outputKey => {
+            console.log(`\t to output: ${outputKey}`);
+            const outputDepthMap = inputNode[outputKey];
+            Object.keys(outputDepthMap).forEach(depth => {
+                console.log(`\t\t at depth: ${depth}`)
+                const paths = outputDepthMap[depth];
+                paths.forEach(path =>{
+                    console.log(`\t\t\t path: ${path.join('->')}`)
+                })
+            })
+        })
+    });
 }
 
 export function logArbitrageMap(map: ArbitrageInputMap) {
