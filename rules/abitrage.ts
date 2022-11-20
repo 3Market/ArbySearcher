@@ -5,11 +5,12 @@ import { hexStripZeros } from 'ethers/lib/utils';
 import { pool } from '../types/v3/v3-core/artifacts/contracts/interfaces';
 import { ExtendedPool } from './pool';
 import Heap from 'heap';
-import { Price, Token } from '@uniswap/sdk-core';
-import { logArbitrageMap, logPathMap } from './logs';
+import { CurrencyAmount, Price, Token } from '@uniswap/sdk-core';
+import { logArbitrageMap, logCircuits, logPathMap } from './logs';
 import { Queue } from 'queue-typescript';
 import { defaultMaxListeners } from 'events';
-import { BigNumber } from 'ethers';
+import { BigNumber, ethers } from 'ethers';
+import { ObjectFlags } from 'typescript';
 
 
 export type ArbitrageInputMap = Map<ArbitrageInputNode>
@@ -71,17 +72,29 @@ export function calculateSuperficialArbitrages(pools: ExtendedPool[], depth = 2)
     console.log('---------------------------------');
     //logPathMap(pathMap);
 
-    const circuits = getCircuits(pathMap, poolByTokenAddress);
-    logCircuits(circuits);
+    const arbCircuits = getCircuits(pathMap, poolByTokenAddress);
+    logCircuits(arbCircuits);
+
+    Object.keys(arbCircuits).forEach(startingTokenAddress => {
+        const paths = arbCircuits[startingTokenAddress];
+        const startingToken = poolByTokenAddress[startingTokenAddress].inputToken
+        const rawAmount = ethers.utils.parseUnits("1", startingToken.decimals);
+        const amount = CurrencyAmount.fromRawAmount(startingToken, rawAmount.toString())
+        paths.forEach(path => {
+            const arb = calculateArb(amount, path, poolByTokenAddress);
+            console.log (`potential Arb: ${arb.toSignificant(18)} path: ${path.join('->')}`);
+        });
+    })
 }
 
-function logCircuits(circuitMap: CircuitMap) {
-  for(let key in circuitMap)  {
-    console.log(`circuits for key: ${key}`);
-    circuitMap[key].forEach(path => {
-        console.log(`\t${key}->${path.join('->')}`)
-    }) 
-  }  
+export function calculateArb(amount: CurrencyAmount<Token>, route: string[], poolByTokenAddress: ArbitrageInputMap) {
+    for(let output of route) {
+        // console.log(`Input ${amount.currency.symbol}: address ${amount.currency.address} - Output: ${poolByTokenAddress[amount.currency.address] }`)
+        const bestRateDetail = poolByTokenAddress[amount.currency.address].outputMap[output].details[0];
+        amount = bestRateDetail.outputAmount.quote(amount);
+    }
+    
+    return amount;
 }
 
 function getCircuits(pathMap: PathMap, poolByTokenAddress: ArbitrageInputMap) {

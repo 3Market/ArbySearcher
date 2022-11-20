@@ -1,6 +1,6 @@
 import { Pool } from "@uniswap/v3-sdk";
 import { BigNumber } from "ethers";
-import { ArbitrageInputMap, PathMap } from "./abitrage";
+import { ArbitrageInputMap, CircuitMap, PathMap } from "./abitrage";
 import { slot0Response } from "./decodeResults";
 import { MappedCallResponse } from "./mutlipleContractSingleData";
 
@@ -14,6 +14,15 @@ export function logSlot0Data(slot0Data: MappedCallResponse<slot0Response>) {
         console.log(`sqrtPriceX96: ${returnData.returnData.sqrtPriceX96}`);
     })
 }
+
+export function logCircuits(circuitMap: CircuitMap) {
+    for(let key in circuitMap)  {
+      console.log(`circuits for key: ${key}`);
+      circuitMap[key].forEach(path => {
+          console.log(`\t${key}->${path.join('->')}`)
+      }) 
+    }  
+  }
 
 export function logQuotes(slot0Data: MappedCallResponse<BigNumber>) {
     console.log(`LOG QUOTES -----`)
@@ -55,7 +64,7 @@ export function logArbitrageMap(map: ArbitrageInputMap) {
         Object.keys(outputMap).forEach(outputKey => {
             const outputNode = outputMap[outputKey];
             const o = outputNode.outputToken;
-            console.log(`\t ${outputNode.outputToken.name}`);
+            console.log(`\t ${outputNode.outputToken.name} - address-Key: ${outputKey}`);
             outputNode.details.forEach(d => {
                 console.log(`\t\t ${i.symbol}-${o.symbol} price: ${d.outputAmount.toSignificant(6)} Liquidity:${d.liquidity} Pool Address: ${d.poolAddress}`); 
             })
