@@ -24,6 +24,8 @@ import type { JsonRpcProvider } from '@ethersproject/providers'
 import { getAvailableUniPools, getPools, PoolData } from './rules/pool';
 import { UniswapInterfaceMulticall } from './types/v3/UniswapInterfaceMulticall';
 import { calculateSuperficialArbitrages } from './rules/abitrage';
+import { getAllTicksForPool } from './rules/ticks';
+import { pool } from './types/v3/v3-core/artifacts/contracts/interfaces';
 
 
 env.config();
@@ -40,8 +42,8 @@ const arbySearch = async () => {
     //const tradableTokens = await fetchQuickswapTokenlist();
     //const pairs = buildPairs(tradableTokens, [FeeAmount.LOWEST, FeeAmount.LOW]);
 
-    const pairs = buildPairs(PRIMARY_ARBITRAGE_ASSETS, [FeeAmount.LOWEST, FeeAmount.LOW, FeeAmount.MEDIUM, FeeAmount.HIGH]);
-    //const pairs = buildPairs([USDC_POLYGON, USDT_POLYGON, DAI_POLYGON], [FeeAmount.LOWEST, FeeAmount.LOW]);
+    //const pairs = buildPairs(PRIMARY_ARBITRAGE_ASSETS, [FeeAmount.LOWEST, FeeAmount.LOW, FeeAmount.MEDIUM, FeeAmount.HIGH]);
+    const pairs = buildPairs([USDC_POLYGON, USDT_POLYGON, DAI_POLYGON], [FeeAmount.LOWEST, FeeAmount.LOW]);
 
     console.log(pairs.length);
     
@@ -51,7 +53,6 @@ const arbySearch = async () => {
     console.log(availablePoolData.length);
 
     const poolAddresses = availablePoolData.map(x => x.poolAddress);
-
     console.log('pool address: ' + poolAddresses);
 
     const multicallContract = getMulticallContract(multicallAddress, MulticallABI, provider);
@@ -75,6 +76,8 @@ const arbySearch = async () => {
         throw new Error('void quotes response');
     }
     //logQuotes(quotesResponse as MappedCallResponse<BigNumber>);
+
+    getAllTicksForPool('0x45dda9cb7c25131df268515131f647d726f50608', multicallContract);
 }
 
 

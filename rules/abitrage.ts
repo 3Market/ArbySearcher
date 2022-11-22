@@ -79,10 +79,13 @@ export function calculateSuperficialArbitrages(pools: ExtendedPool[], depth = 2)
         const paths = arbCircuits[startingTokenAddress];
         const startingToken = poolByTokenAddress[startingTokenAddress].inputToken
         const rawAmount = ethers.utils.parseUnits("1", startingToken.decimals);
-        const amount = CurrencyAmount.fromRawAmount(startingToken, rawAmount.toString())
+        const initialAmount = CurrencyAmount.fromRawAmount(startingToken, rawAmount.toString())
         paths.forEach(path => {
-            const arb = calculateArb(amount, path, poolByTokenAddress);
-            console.log (`potential Arb: ${arb.toSignificant(18)} path: ${path.join('->')}`);
+            const arb = calculateArb(initialAmount, path, poolByTokenAddress);
+            const arbPercent = arb.subtract(initialAmount).multiply(100); //.divide(initialAmount).multiply(100);
+            if(arbPercent.greaterThan(0)) {
+                console.log (`Arb percent: ${arbPercent.toSignificant(4)} output: ${arb.toSignificant(18)} path: ${path.join('->')}`);
+            }
         });
     })
 }
@@ -103,7 +106,6 @@ function getCircuits(pathMap: PathMap, poolByTokenAddress: ArbitrageInputMap) {
         circuitMap[key] = [];
         const circuitPaths = pathMap[key][key];
         for(let depth in circuitPaths) {
-            console.log('Any');
             circuitPaths[depth].forEach(path => circuitMap[key].push(path));
         }
     }

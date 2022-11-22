@@ -1,7 +1,7 @@
 import { Pool } from "@uniswap/v3-sdk";
 import { BigNumber } from "ethers";
 import { ArbitrageInputMap, CircuitMap, PathMap } from "./abitrage";
-import { slot0Response } from "./decodeResults";
+import { slot0Response, TickResponse } from "./decodeResults";
 import { MappedCallResponse } from "./mutlipleContractSingleData";
 
 export function logSlot0Data(slot0Data: MappedCallResponse<slot0Response>) {
@@ -14,6 +14,18 @@ export function logSlot0Data(slot0Data: MappedCallResponse<slot0Response>) {
         console.log(`sqrtPriceX96: ${returnData.returnData.sqrtPriceX96}`);
     })
 }
+
+export function logTickResponse(slot0Data: MappedCallResponse<TickResponse>) {
+    console.log(`length: ${slot0Data.length}`)
+
+    console.log(`block number: ${slot0Data.blockNumber}`);
+    slot0Data.returnData.forEach((returnData, i) => {
+        console.log(`success: ${returnData.success}`);
+        console.log(`Index: ${i} is Initialized: ${returnData.returnData.initialized} data: ${returnData.returnData}`);
+    })
+}
+
+
 
 export function logCircuits(circuitMap: CircuitMap) {
     for(let key in circuitMap)  {

@@ -9,3 +9,14 @@ export type slot0Response = {
     feeProtocol: number;
     unlocked: boolean;
 }
+
+export type TickResponse = {
+    liquidityGross: BigNumber;
+    liquidityNet: BigNumber;
+    feeGrowthOutside0X128: BigNumber;
+    feeGrowthOutside1X128: BigNumber;
+    tickCumulativeOutside: BigNumber;
+    secondsPerLiquidityOutsideX128: BigNumber;
+    secondsOutside: number;
+    initialized: boolean;
+  }

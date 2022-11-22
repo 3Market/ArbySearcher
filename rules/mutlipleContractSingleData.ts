@@ -86,8 +86,7 @@ export function multipleContractSingleValue<T>(
         return clone;
     })
 
-    //Hack: not sure how to return the exected map type
-    return result as any;
+    return result as Promise<MappedCallResponse<T>>;
 }
 
 export function singleContractMultipleValue<T>(
@@ -129,6 +128,5 @@ export function singleContractMultipleValue<T>(
       return clone;
   })
 
-  //Hack: not sure how to return the exected map type
-  return result as any;
+  return result as Promise<MappedCallResponse<T>>;
 }
