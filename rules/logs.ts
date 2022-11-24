@@ -1,3 +1,4 @@
+import { Token } from "@uniswap/sdk-core";
 import { Pool } from "@uniswap/v3-sdk";
 import { BigNumber } from "ethers";
 import { ArbitrageInputMap, CircuitMap, PathMap } from "./abitrage";
@@ -88,4 +89,10 @@ export function logPools(pools: Pool[]) {
     pools.forEach(p => {
         console.log(`${p.token0.symbol}-${p.token1.symbol}:${p.fee} t0 price: ${p.token0Price.toSignificant(6)} t1 price: ${p.token1Price.toSignificant(6)}`)
     })
+}
+
+export function logTokenPrices(tokens: Token[], priceMap: {[key:string]:number }) {
+    tokens.forEach(t => {
+        console.log(`${t.symbol} price: ${priceMap[t.address]}`);
+    });
 }

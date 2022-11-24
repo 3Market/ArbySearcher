@@ -154,6 +154,19 @@ export const DAI_POLYGON = new Token(
     MAI_POLYGON
   ]
 
+  // These tokens are used as bridges to USDC
+  // Mostly to aid in figuring out credible prices.
+  export const BRIDGE_TOKENS = [
+    ETH_POLYGON,
+    WBTC_POLYGON,
+    GHST_POLYGON,
+    OLD_QUICK_POLYGON,
+    USDC_POLYGON,
+    USDT_POLYGON,
+    DAI_POLYGON,
+    MAI_POLYGON
+  ]
+
   export const PRIMARY_ARBITRAGE_ASSETS = [
     ...STABLE_ASSETS,
     WMATIC_POLYGON,

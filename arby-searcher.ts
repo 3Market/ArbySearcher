@@ -16,7 +16,7 @@ import { Token } from '@uniswap/sdk-core';
 import { Quoter } from './types/v3/v3-periphery/artifacts/contracts/lens';
 import { format } from 'path';
 import { buildPairs, fetchQuickswapTokenlist, PairData } from './rules/pairsGenerator';
-import { logPools, logQuotes, logSlot0Data } from './rules/logs';
+import { logPools, logQuotes, logSlot0Data, logTokenPrices } from './rules/logs';
 import { QuoterInterface } from './types/v3/v3-periphery/artifacts/contracts/lens/Quoter';
 // import { getAvailableUniPools } from './rules/pool';
 import { getQuotedPrice, getQuoterParams } from './rules/quoterRule';
@@ -26,6 +26,7 @@ import { UniswapInterfaceMulticall } from './types/v3/UniswapInterfaceMulticall'
 import { calculateSuperficialArbitrages } from './rules/abitrage';
 import { getAllTicksForPool } from './rules/ticks';
 import { pool } from './types/v3/v3-core/artifacts/contracts/interfaces';
+import { fetchTokenPrices } from './rules/prices';
 
 
 env.config();
@@ -77,7 +78,10 @@ const arbySearch = async () => {
     }
     //logQuotes(quotesResponse as MappedCallResponse<BigNumber>);
 
-    getAllTicksForPool('0x45dda9cb7c25131df268515131f647d726f50608', multicallContract);
+    await getAllTicksForPool('0x45dda9cb7c25131df268515131f647d726f50608', multicallContract);
+
+    const priceMap = await fetchTokenPrices(PRIMARY_ARBITRAGE_ASSETS.map(x => x.address));
+    logTokenPrices(PRIMARY_ARBITRAGE_ASSETS, priceMap);
 }
 
 

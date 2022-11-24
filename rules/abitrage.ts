@@ -1,5 +1,5 @@
-import { Pool } from '@uniswap/v3-sdk'
-import _, { mapKeys } from 'lodash';
+import { Pool, SwapMath } from '@uniswap/v3-sdk'
+import _ from 'lodash';
 import { from } from "linq-to-typescript"
 import { hexStripZeros } from 'ethers/lib/utils';
 import { pool } from '../types/v3/v3-core/artifacts/contracts/interfaces';
@@ -17,6 +17,7 @@ export type ArbitrageInputMap = Map<ArbitrageInputNode>
 export type ArbitrageOutputDetailMap = Map<ArbitrageOutputDetail>
 export type Map<TValue> = {[key:string]:TValue }
 export type PathMap = Map<Map<Map<string[][]>>>
+export type FlattenedPathMap = Map<Map<string[][]>>
 export type CircuitMap = Map<string[][]>;
 
  interface ArbitrageInputNode {
@@ -31,6 +32,7 @@ export type CircuitMap = Map<string[][]>;
 
  interface ArbitragePoolDetail {
     poolAddress: string
+    pool: ExtendedPool
     liquidity: string
     outputAmount: Price<Token, Token>
  }
@@ -46,22 +48,7 @@ export type CircuitMap = Map<string[][]>;
 //       Calculating the optimal route is an issue, since the aribtrage calcations are done on a backend server 
 //       the long it takes to calculate the aribtrage, the less probability that the arbitrage is still going 
 //       to be there when the transaction is executed.
-//    Soltions: 
-//    
-///   Ideally you could precaluate everything using Bellman Fords' so and map the routes based off the weighed size of everything 
-//    However if we were to take all the pool into consideration it would take alot of computing power to make sure that all the routes were 
-//    precalcuted per block. Instead it may be more ideal to hook into a websocket for v3 and maintain a running map of all the precalculate routes
-//    dynamically update them based off of the affects of any transaction on the block chain.  But that would be an institution level project
-//    add utter madness to develop
-
-//    The alternative should be more time efficient, and robust enough for what were trying to achieve.
-//    Self Balancing pools will work the following way:
-//         1. user swaps from T0 - T1, leaving T0 imbalanced.
-//         2. Precalculate all the routes from T1 with back to the intial pool included for rebalance based on N depth (Multihops)
-//         3. Chain the swap back together to reenter to original pool with a la
-//    Example:  
-//Note: Superfical does not take the impact the swap would have on the market
-export function calculateSuperficialArbitrages(pools: ExtendedPool[], depth = 2) {
+export function calculateSuperficialArbitrages(pools: ExtendedPool[]) {
 
     const tokens = from(pools.flatMap(x => [x.token0, x.token1])).distinct().toArray();
     const poolByTokenAddress = getArbitrageMapOrderOutputDesc(pools);
@@ -180,11 +167,12 @@ function populateArbitrageDetails(map: ArbitrageInputMap, inputToken: Token, out
 
     outputMap[outputKey].details.push({
         poolAddress: pool.poolAddress,
+        pool,
         liquidity: pool.liquidity.toString(),
         //The price is how much you will get out given you put in 1 in the other side
         //so to get the output amount is equvalent to the input tokens price
         //Ref: WMATIC-USDT:10000 t0 price: 0.93758 t1 price: 1.06658
-        outputAmount: isReverse ? pool.token1Price : pool.token0Price
+        outputAmount: isReverse ? pool.token1Price : pool.token0Price,
     })
 }
 

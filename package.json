@@ -21,7 +21,8 @@
     "linq-to-typescript": "^10.0.0",
     "queue-typescript": "^1.0.1",
     "save-dev": "^0.0.1-security",
-    "ts-node": "^10.9.1"
+    "ts-node": "^10.9.1",
+    "jsbi": "^3.1.4"
   },
   "devDependencies": {
     "@babel/preset-typescript": "^7.18.6",

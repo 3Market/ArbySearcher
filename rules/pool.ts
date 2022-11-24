@@ -14,7 +14,6 @@ import { getQuotedPrice } from './quoterRule';
 import type { JsonRpcProvider } from '@ethersproject/providers'
 import { UniswapInterfaceMulticall } from '../types/v3/UniswapInterfaceMulticall';
 import { BigintIsh, sqrt, Token } from '@uniswap/sdk-core';
-import { pool } from '../types/v3/v3-core/artifacts/contracts/interfaces';
 
 export interface PoolData extends PairData {
     poolAddress: string,
@@ -62,6 +61,7 @@ export const getPools = async(poolData: PoolData[], multicallContract: UniswapIn
     return poolData.map((p, i) => { 
         const poolState = slot0Response.returnData[i].returnData;
         const liquidity = liquiditiesResponse.returnData[i].returnData[0];
+
         return new ExtendedPool(
             p.poolAddress,
             p.token0,
