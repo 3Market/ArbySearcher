@@ -1,4 +1,4 @@
-import { Pool, TickMath } from "@uniswap/v3-sdk";
+import { LiquidityMath, Pool, SwapMath, TickMath } from "@uniswap/v3-sdk";
 import { Interface } from "ethers/lib/utils";
 import { IUniswapV3PoolState, IUniswapV3PoolStateInterface } from "../types/v3/v3-core/artifacts/contracts/interfaces/pool/IUniswapV3PoolState";
 import { slot0Response, TickResponse } from "./decodeResults";
@@ -14,25 +14,22 @@ import { getContract } from "./getContract";
 import type { JsonRpcProvider } from '@ethersproject/providers'
 import JSBI from "jsbi";
 
+const MAX_UINT_256 = JSBI.BigInt("115792089237316195423570985008687907853269984665640564039457584007913129639935");
 const POOL_STATE_INTERFACE = new Interface(IUniswapV3PoolStateABI) as IUniswapV3PoolStateInterface
-const PoolTickChunk = 1000;
 
-export async function GetTickRange(multicallContract: UniswapInterfaceMulticall, pool: ExtendedPool, additionalPct: number = 10) {
+export async function getTickRangeResponses(lowerBound: number, upperBound: number, pool: ExtendedPool,
+    multicallContract: UniswapInterfaceMulticall) {
+    
     const tickSpacing = pool.tickSpacing;
-    const {upperTick: upperBound, lowerTick: lowerBounds } = getTickBounds(pool.tickCurrent, tickSpacing)
 
     const parameters = [];
-    const startTick = lowerBounds - (PoolTickChunk * tickSpacing);
-    for(let i = 0; i < (PoolTickChunk * 2); i++) {
-        const currentTick = (i*tickSpacing) + startTick;
+    for(let i = lowerBound; i <= upperBound; i+= tickSpacing) {
         parameters.push([i]);
     }
-    console.log('Making Request')
-    const tickResponse = await singleContractMultipleValue<TickResponse>(
-            multicallContract, pool.poolAddress, POOL_STATE_INTERFACE, 'ticks', parameters)
-        .catch(err => console.log('Mapped Call Responose error:' + err)) as MappedCallResponse<TickResponse>
 
-    logTickResponse(tickResponse);
+    return singleContractMultipleValue<TickResponse>(
+            multicallContract, pool.poolAddress, POOL_STATE_INTERFACE, 'ticks', parameters)
+        .catch(err => console.log('Mapped Call Responose error:' + err)) as Promise<MappedCallResponse<TickResponse>>
 }
 
 export function getPoolContract(poolAddress: string, provider: JsonRpcProvider) {
@@ -41,10 +38,25 @@ export function getPoolContract(poolAddress: string, provider: JsonRpcProvider) 
 
 export function getTickBounds(tick: number, poolSpacing: number) :{lowerTick: number, upperTick:number } {
    const result: any = {}
-   result.upperTick =  Math.floor(tick / poolSpacing) * poolSpacing;
-   result.lowerTick = result.lowerBounds + poolSpacing;
+   //Round towards negative infinity
+   result.lowerTick =  Math.floor(tick / poolSpacing) * poolSpacing;
+   result.upperTick = result.lowerTick + poolSpacing;
    return result;
 }
+
+export function calculateTickRange(currentTick: number, poolSpacing: number, targetPrice: JSBI) 
+    :{lowerTick: number, upperTick:number } 
+{
+    let {lowerTick, upperTick } = getTickBounds(currentTick, poolSpacing);
+    let finalTick = TickMath.getTickAtSqrtRatio(targetPrice);
+    let finalBounds = getTickBounds(finalTick, poolSpacing);
+
+    return {
+       lowerTick: Math.min(lowerTick, finalBounds.lowerTick),
+       upperTick: Math.max(upperTick, finalBounds.upperTick)
+    }
+}
+ 
 
 //amount of x in range; sp - sqrt of current price, sb - sqrt of max price
 function x_in_range(L: JSBI, currentPrice: JSBI, priceBounds: JSBI) {
@@ -55,6 +67,8 @@ function x_in_range(L: JSBI, currentPrice: JSBI, priceBounds: JSBI) {
     return JSBI.multiply(L, ratio);
 }
 
+//TODO: this looks wrong, this doesn't account for the portion of the 
+//liquidity which has already been traded if this was the current tick range
 //amount of y in range; sp - sqrt of current price, sa - sqrt of min price
 function y_in_range(L: JSBI, sp: JSBI, sa: JSBI) {
     // L * (sp - sa)
@@ -62,7 +76,59 @@ function y_in_range(L: JSBI, sp: JSBI, sa: JSBI) {
     return JSBI.multiply(L, dif);
 }
 
+async function volumeToReachTargetPrice2(pool: ExtendedPool, isDirection0For1: boolean, poolContract: IUniswapV3PoolState, multicallContract: UniswapInterfaceMulticall) {
+    // how much of X or Y tokens we need to *buy* to get to the target price?
+    let deltaTokens: JSBI = JSBI.BigInt(0);
+    const tickSpacing = pool.tickSpacing;
 
+    let liquidity = pool.liquidity;
+    let sPriceCurrent: JSBI = pool.sqrtRatioX96
+    const sMaxPriceTarget: JSBI = JSBI.ADD(pool.sqrtRatioX96, 1);
+
+    let {lowerTick, upperTick} = getTickBounds(pool.tickCurrent, tickSpacing);
+    let tickRange = calculateTickRange(pool.tickCurrent, tickSpacing, sPriceCurrent);
+    const tickRangeResponse = await getTickRangeResponses(tickRange.lowerTick, tickRange.upperTick, pool, multicallContract);
+    const tickToResponseMap: {[key: string]:TickResponse} = {};
+    tickRangeResponse.returnData.map((data, i) => {
+        const key = tickRange.lowerTick + (i*tickSpacing);
+        tickToResponseMap[key] = data.returnData
+    });
+
+    //if direction is 0 for 1 then the price direction should be decreasing
+    let nextTick = isDirection0For1 ? lowerTick : upperTick;
+    //the tick range bounds should reflect the tick bound of the price inclusive to overflow
+    let limitTick = isDirection0For1 ? tickRange.lowerTick : tickRange.upperTick;
+    const direction = isDirection0For1 ? -1 : 1;
+    while(nextTick != limitTick) {
+        const nextPrice = getNextPrice(nextTick, isDirection0For1, sMaxPriceTarget); 
+        const [sqrtPriceX96, amountIn, amountOut, feeAmount]
+            = SwapMath.computeSwapStep(sPriceCurrent, nextPrice, liquidity, MAX_UINT_256, pool.fee);
+
+        sPriceCurrent = sqrtPriceX96
+        let { liquidityNet } = tickToResponseMap[nextTick];
+        // if we're moving leftward, we interpret liquidityNet as the opposite sign
+        // safe because liquidityNet cannot be type(int128).min
+        const normalizedLiquidityNet = JSBI.BigInt(isDirection0For1 ? '-' : '' + liquidityNet.toString())
+        liquidity = LiquidityMath.addDelta(liquidity, normalizedLiquidityNet);
+        nextTick = nextTick + (tickSpacing * direction);
+    }
+}
+
+function getNextPrice(nextTick: number, isDirection0For1:boolean, sMaxPriceTarget: JSBI) {
+    const nextPriceTarget = TickMath.getSqrtRatioAtTick(nextTick);
+    // Verbose for readability
+    if(isDirection0For1) {
+        // If the Direction is 0 for 1 then the price should be decreasing
+        // there for we want to take the larger price as 
+        // (the least price will be beyond our target)
+        return JSBI.greaterThan(nextPriceTarget, sMaxPriceTarget) ? nextPriceTarget : sMaxPriceTarget
+    } else {
+        // If the Direction is 1 for 0 then the price should be increasing
+        // there for we want to take the lesser price as 
+        // (the higher price will be beyond our target)
+        return JSBI.greaterThan(nextPriceTarget, sMaxPriceTarget) ? sMaxPriceTarget : nextPriceTarget 
+    }
+}
 
 async function volumeToReachTargetPrice(pool: ExtendedPool, provider: JsonRpcProvider) {
     // how much of X or Y tokens we need to *buy* to get to the target price?
