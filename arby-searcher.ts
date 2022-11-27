@@ -1,33 +1,28 @@
 import { BigNumber, ethers } from 'ethers';
-import { abi as IUniswapV3PoolABI } from '@uniswap/v3-core/artifacts/contracts/interfaces/IUniswapV3Pool.sol/IUniswapV3Pool.json' 
 import { abi as MulticallABI } from '@uniswap/v3-periphery/artifacts/contracts/lens/UniswapInterfaceMulticall.sol/UniswapInterfaceMulticall.json'
-import { abi as IUniswapV3PoolStateABI } from '@uniswap/v3-core/artifacts/contracts/interfaces/pool/IUniswapV3PoolState.sol/IUniswapV3PoolState.json'
 import { abi as QuoterABI } from '@uniswap/v3-periphery/artifacts/contracts/lens/Quoter.sol/Quoter.json'
-import { computePoolAddress, FeeAmount, Pool } from '@uniswap/v3-sdk'
+import { computePoolAddress, FeeAmount, Pool, TickMath } from '@uniswap/v3-sdk'
 import { MULTICALL_ADDRESS, QUOTER_ADDRESS, SupportedExchanges, V3_CORE_FACTORY_ADDRESSES } from "./rules/constants";
-import { USDC_POLYGON, USDT_POLYGON, DAI_POLYGON, PRIMARY_ARBITRAGE_ASSETS } from "./rules/tokens";
+import { USDC_POLYGON, USDT_POLYGON, DAI_POLYGON, PRIMARY_ARBITRAGE_ASSETS, ETH_POLYGON } from "./rules/tokens";
 import env from 'dotenv'
 import { Interface } from 'ethers/lib/utils';
-import { IUniswapV3PoolStateInterface } from './types/v3/v3-core/artifacts/contracts/interfaces/pool/IUniswapV3PoolState';
 import { MappedCallResponse, MethodArg, singleContractMultipleValue, multipleContractSingleValue } from './rules/mutlipleContractSingleData';
 import { slot0Response } from './rules/decodeResults';
-import { getMulticallContract, getQuoterContract } from './rules/getContract';
-import { Token } from '@uniswap/sdk-core';
+import { getContract, getMulticallContract, getQuoterContract } from './rules/getContract';
 import { Quoter } from './types/v3/v3-periphery/artifacts/contracts/lens';
 import { format } from 'path';
 import { buildPairs, fetchQuickswapTokenlist, PairData } from './rules/pairsGenerator';
 import { logPools, logQuotes, logSlot0Data, logTokenPrices } from './rules/logs';
 import { QuoterInterface } from './types/v3/v3-periphery/artifacts/contracts/lens/Quoter';
 // import { getAvailableUniPools } from './rules/pool';
-import { getQuotedPrice, getQuoterParams } from './rules/quoterRule';
+import { getParsedQuotedPrice, getQuotedPrice, getQuoterParams } from './rules/quoterRule';
 import type { JsonRpcProvider } from '@ethersproject/providers'
-import { getAvailableUniPools, getPools, PoolData } from './rules/pool';
+import { ExtendedPool, getAvailableUniPools, getPools, PoolData } from './rules/pool';
 import { UniswapInterfaceMulticall } from './types/v3/UniswapInterfaceMulticall';
 import { calculateSuperficialArbitrages } from './rules/abitrage';
-import { getAllTicksForPool } from './rules/ticks';
-import { pool } from './types/v3/v3-core/artifacts/contracts/interfaces';
+import { getPoolContract, volumeToReachTargetPrice } from './rules/ticks';
 import { fetchTokenPrices } from './rules/prices';
-
+import JSBI from "jsbi";
 
 env.config();
 
@@ -78,12 +73,25 @@ const arbySearch = async () => {
     }
     //logQuotes(quotesResponse as MappedCallResponse<BigNumber>);
 
-    await getAllTicksForPool('0x45dda9cb7c25131df268515131f647d726f50608', multicallContract);
+    //await getAllTicksForPool('0x45dda9cb7c25131df268515131f647d726f50608', multicallContract);
 
     const priceMap = await fetchTokenPrices(PRIMARY_ARBITRAGE_ASSETS.map(x => x.address));
     logTokenPrices(PRIMARY_ARBITRAGE_ASSETS, priceMap);
 }
 
+async function verifyVolumeToReachTargetPrice(provider: JsonRpcProvider, 
+        multicallContract: UniswapInterfaceMulticall, pool: ExtendedPool) {
+    const priceTarget = TickMath.getSqrtRatioAtTick(pool.tickCurrent + 400)
+    const amounts = await volumeToReachTargetPrice(pool, true, multicallContract, priceTarget);
+
+    console.log(`Amounts: ${amounts}`);
+
+    const quoterContract = getContract(QUOTER_ADDRESS[SupportedExchanges.Uniswap], QuoterABI, provider) as Quoter;
+    const parsedAmountIn = BigNumber.from(amounts.amountIn.toString());
+    const amountOut = await getParsedQuotedPrice(quoterContract, parsedAmountIn, USDC_POLYGON, ETH_POLYGON, FeeAmount.LOW);
+
+    console.log(`expected amount out: ${amountOut}, result: ${amountOut}`);
+}
 
 function formatPrice(amount: BigNumber, decimals: number) {
     return amount.toNumber() / Math.pow(10, decimals)

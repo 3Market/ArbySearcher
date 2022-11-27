@@ -76,15 +76,16 @@ function y_in_range(L: JSBI, sp: JSBI, sa: JSBI) {
     return JSBI.multiply(L, dif);
 }
 
-async function volumeToReachTargetPrice2(pool: ExtendedPool, isDirection0For1: boolean, poolContract: IUniswapV3PoolState, multicallContract: UniswapInterfaceMulticall) {
+export async function volumeToReachTargetPrice(pool: ExtendedPool, isDirection0For1: boolean, 
+      multicallContract: UniswapInterfaceMulticall, sMaxPriceTarget: JSBI) {
     // how much of X or Y tokens we need to *buy* to get to the target price?
-    let deltaTokens: JSBI = JSBI.BigInt(0);
+    let deltaTokenIn: JSBI = JSBI.BigInt(0);
+    let deltaTokenOut: JSBI = JSBI.BigInt(0);
+
     const tickSpacing = pool.tickSpacing;
 
     let liquidity = pool.liquidity;
     let sPriceCurrent: JSBI = pool.sqrtRatioX96
-    const sMaxPriceTarget: JSBI = JSBI.ADD(pool.sqrtRatioX96, 1);
-
     let {lowerTick, upperTick} = getTickBounds(pool.tickCurrent, tickSpacing);
     let tickRange = calculateTickRange(pool.tickCurrent, tickSpacing, sPriceCurrent);
     const tickRangeResponse = await getTickRangeResponses(tickRange.lowerTick, tickRange.upperTick, pool, multicallContract);
@@ -104,6 +105,9 @@ async function volumeToReachTargetPrice2(pool: ExtendedPool, isDirection0For1: b
         const [sqrtPriceX96, amountIn, amountOut, feeAmount]
             = SwapMath.computeSwapStep(sPriceCurrent, nextPrice, liquidity, MAX_UINT_256, pool.fee);
 
+        deltaTokenIn = JSBI.ADD(deltaTokenIn, amountIn);
+        deltaTokenOut = JSBI.ADD(deltaTokenOut, amountOut);
+
         sPriceCurrent = sqrtPriceX96
         let { liquidityNet } = tickToResponseMap[nextTick];
         // if we're moving leftward, we interpret liquidityNet as the opposite sign
@@ -112,6 +116,7 @@ async function volumeToReachTargetPrice2(pool: ExtendedPool, isDirection0For1: b
         liquidity = LiquidityMath.addDelta(liquidity, normalizedLiquidityNet);
         nextTick = nextTick + (tickSpacing * direction);
     }
+    return { amountIn: deltaTokenIn, amountOut: deltaTokenOut }
 }
 
 function getNextPrice(nextTick: number, isDirection0For1:boolean, sMaxPriceTarget: JSBI) {
@@ -130,7 +135,7 @@ function getNextPrice(nextTick: number, isDirection0For1:boolean, sMaxPriceTarge
     }
 }
 
-async function volumeToReachTargetPrice(pool: ExtendedPool, provider: JsonRpcProvider) {
+async function volumeToReachTargetPriceOld(pool: ExtendedPool, provider: JsonRpcProvider) {
     // how much of X or Y tokens we need to *buy* to get to the target price?
     let deltaTokens: JSBI = JSBI.BigInt(0);
     const tickSpacing = pool.tickSpacing;

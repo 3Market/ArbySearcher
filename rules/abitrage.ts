@@ -32,7 +32,7 @@ export type CircuitMap = Map<string[][]>;
 
  interface ArbitragePoolDetail {
     poolAddress: string
-    pool: ExtendedPool
+    //pool: ExtendedPool
     liquidity: string
     outputAmount: Price<Token, Token>
  }
@@ -167,7 +167,7 @@ function populateArbitrageDetails(map: ArbitrageInputMap, inputToken: Token, out
 
     outputMap[outputKey].details.push({
         poolAddress: pool.poolAddress,
-        pool,
+        //pool,
         liquidity: pool.liquidity.toString(),
         //The price is how much you will get out given you put in 1 in the other side
         //so to get the output amount is equvalent to the input tokens price

@@ -1,6 +1,6 @@
 import { Token } from "@uniswap/sdk-core";
 import { FeeAmount } from "@uniswap/v3-sdk";
-import { ethers } from "ethers";
+import { BigNumber, ethers } from "ethers";
 import { Quoter } from "../types/v3/v3-periphery/artifacts/contracts/lens/Quoter";
 import { PairData } from "./pairsGenerator";
 
@@ -19,5 +19,9 @@ export function getQuoterParams(pairs: PairData[], tokenAmount: string) {
 
 export const getQuotedPrice = async (quoterContract: Quoter, inputAmount: string, inputToken: Token, quoteToken: Token, feeAmount: FeeAmount) => { 
     const parsedAmountIn = ethers.utils.parseUnits(inputAmount, inputToken.decimals);
+    return quoterContract.callStatic.quoteExactInputSingle(inputToken.address, quoteToken.address, feeAmount, parsedAmountIn, 0);
+}
+
+export const getParsedQuotedPrice = async (quoterContract: Quoter, parsedAmountIn: BigNumber, inputToken: Token, quoteToken: Token, feeAmount: FeeAmount) => { 
     return quoterContract.callStatic.quoteExactInputSingle(inputToken.address, quoteToken.address, feeAmount, parsedAmountIn, 0);
 }
