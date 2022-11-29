@@ -87,7 +87,8 @@ export async function volumeToReachTargetPrice(pool: ExtendedPool, isDirection0F
     let liquidity = pool.liquidity;
     let sPriceCurrent: JSBI = pool.sqrtRatioX96
     let {lowerTick, upperTick} = getTickBounds(pool.tickCurrent, tickSpacing);
-    let tickRange = calculateTickRange(pool.tickCurrent, tickSpacing, sPriceCurrent);
+    let tickRange = calculateTickRange(pool.tickCurrent, tickSpacing, sMaxPriceTarget);
+
     const tickRangeResponse = await getTickRangeResponses(tickRange.lowerTick, tickRange.upperTick, pool, multicallContract);
     const tickToResponseMap: {[key: string]:TickResponse} = {};
     tickRangeResponse.returnData.map((data, i) => {
@@ -99,6 +100,9 @@ export async function volumeToReachTargetPrice(pool: ExtendedPool, isDirection0F
     let nextTick = isDirection0For1 ? lowerTick : upperTick;
     //the tick range bounds should reflect the tick bound of the price inclusive to overflow
     let limitTick = isDirection0For1 ? tickRange.lowerTick : tickRange.upperTick;
+    console.log(`TL: ${lowerTick}, TU: ${upperTick}, TRL: ${tickRange.lowerTick} TRU: ${tickRange.upperTick}`);
+    console.log(`is0For1: ${isDirection0For1} limit tick: ${limitTick}`);
+
     const direction = isDirection0For1 ? -1 : 1;
     while(nextTick != limitTick) {
         const nextPrice = getNextPrice(nextTick, isDirection0For1, sMaxPriceTarget); 
@@ -112,7 +116,8 @@ export async function volumeToReachTargetPrice(pool: ExtendedPool, isDirection0F
         let { liquidityNet } = tickToResponseMap[nextTick];
         // if we're moving leftward, we interpret liquidityNet as the opposite sign
         // safe because liquidityNet cannot be type(int128).min
-        const normalizedLiquidityNet = JSBI.BigInt(isDirection0For1 ? '-' : '' + liquidityNet.toString())
+        // const normalizedLiquidityNet = JSBI.BigInt(isDirection0For1 ? '-' : '' + liquidityNet.toString())
+        const normalizedLiquidityNet = JSBI.BigInt(liquidityNet.toString())
         liquidity = LiquidityMath.addDelta(liquidity, normalizedLiquidityNet);
         nextTick = nextTick + (tickSpacing * direction);
     }

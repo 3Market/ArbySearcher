@@ -23,6 +23,7 @@ import { calculateSuperficialArbitrages } from './rules/abitrage';
 import { getPoolContract, volumeToReachTargetPrice } from './rules/ticks';
 import { fetchTokenPrices } from './rules/prices';
 import JSBI from "jsbi";
+import { Fraction } from '@uniswap/sdk-core';
 
 env.config();
 
@@ -39,7 +40,7 @@ const arbySearch = async () => {
     //const pairs = buildPairs(tradableTokens, [FeeAmount.LOWEST, FeeAmount.LOW]);
 
     //const pairs = buildPairs(PRIMARY_ARBITRAGE_ASSETS, [FeeAmount.LOWEST, FeeAmount.LOW, FeeAmount.MEDIUM, FeeAmount.HIGH]);
-    const pairs = buildPairs([USDC_POLYGON, USDT_POLYGON, DAI_POLYGON], [FeeAmount.LOWEST, FeeAmount.LOW]);
+    const pairs = buildPairs([USDC_POLYGON, USDT_POLYGON, DAI_POLYGON, ETH_POLYGON], [FeeAmount.LOWEST, FeeAmount.LOW]);
 
     console.log(pairs.length);
     
@@ -77,24 +78,34 @@ const arbySearch = async () => {
 
     const priceMap = await fetchTokenPrices(PRIMARY_ARBITRAGE_ASSETS.map(x => x.address));
     logTokenPrices(PRIMARY_ARBITRAGE_ASSETS, priceMap);
+
+    const USDC_WETH_LOW_UNISWAP_POOL_ADDRESS = '0x45dda9cb7c25131df268515131f647d726f50608';
+    const usdcWethPool = poolsWithliquidity.filter(x => x.poolAddress.toLowerCase() == USDC_WETH_LOW_UNISWAP_POOL_ADDRESS)[0]
+    await verifyVolumeToReachTargetPrice(provider, multicallContract, usdcWethPool);
 }
 
 async function verifyVolumeToReachTargetPrice(provider: JsonRpcProvider, 
         multicallContract: UniswapInterfaceMulticall, pool: ExtendedPool) {
-    const priceTarget = TickMath.getSqrtRatioAtTick(pool.tickCurrent + 400)
+    const priceTarget = TickMath.getSqrtRatioAtTick(pool.tickCurrent - 4000)
     const amounts = await volumeToReachTargetPrice(pool, true, multicallContract, priceTarget);
 
-    console.log(`Amounts: ${amounts}`);
+    const expectedAmountOut = formatJSBI(amounts.amountOut, ETH_POLYGON.decimals);
+    console.log(`Amount In: ${formatJSBI(amounts.amountIn, USDC_POLYGON.decimals)} 
+        Out: ${expectedAmountOut}`);
 
     const quoterContract = getContract(QUOTER_ADDRESS[SupportedExchanges.Uniswap], QuoterABI, provider) as Quoter;
     const parsedAmountIn = BigNumber.from(amounts.amountIn.toString());
     const amountOut = await getParsedQuotedPrice(quoterContract, parsedAmountIn, USDC_POLYGON, ETH_POLYGON, FeeAmount.LOW);
 
-    console.log(`expected amount out: ${amountOut}, result: ${amountOut}`);
+    console.log(`expected amount out: ${expectedAmountOut}, result: ${formatPrice(amountOut, 18)}`);
+}
+
+function formatJSBI(amount: JSBI, decimals: number) {
+    return new Fraction(amount, JSBI.BigInt(Math.pow(10, decimals))).toSignificant(decimals)
 }
 
 function formatPrice(amount: BigNumber, decimals: number) {
-    return amount.toNumber() / Math.pow(10, decimals)
+    return parseInt(amount.toHexString()) / Math.pow(10, decimals)
 }
 
 
