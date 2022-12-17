@@ -81,23 +81,43 @@ const arbySearch = async () => {
 
     const USDC_WETH_LOW_UNISWAP_POOL_ADDRESS = '0x45dda9cb7c25131df268515131f647d726f50608';
     const usdcWethPool = poolsWithliquidity.filter(x => x.poolAddress.toLowerCase() == USDC_WETH_LOW_UNISWAP_POOL_ADDRESS)[0]
-    await verifyVolumeToReachTargetPrice(provider, multicallContract, usdcWethPool);
+
+    await verifyVolumeToReachTargetPrice(provider, multicallContract, usdcWethPool, -10);
+    await verifyVolumeToReachTargetPrice(provider, multicallContract, usdcWethPool, +10);
+
+    await verifyVolumeToReachTargetPrice(provider, multicallContract, usdcWethPool, -100);
+    await verifyVolumeToReachTargetPrice(provider, multicallContract, usdcWethPool, +100);
+
+    await verifyVolumeToReachTargetPrice(provider, multicallContract, usdcWethPool, -1000);
+    await verifyVolumeToReachTargetPrice(provider, multicallContract, usdcWethPool, +1000);
 }
 
 async function verifyVolumeToReachTargetPrice(provider: JsonRpcProvider, 
-        multicallContract: UniswapInterfaceMulticall, pool: ExtendedPool) {
-    const priceTarget = TickMath.getSqrtRatioAtTick(pool.tickCurrent - 4000)
-    const amounts = await volumeToReachTargetPrice(pool, true, multicallContract, priceTarget);
+          multicallContract: UniswapInterfaceMulticall, pool: ExtendedPool,
+          deltaTicks: number) {
+    console.log(`verifying that amounts match, deltaTicks: ${deltaTicks}...`);
+    const priceTarget = TickMath.getSqrtRatioAtTick(pool.tickCurrent + deltaTicks);
+    const isDirection0For1 = JSBI.lessThan(priceTarget, pool.sqrtRatioX96);
+    const amounts = await volumeToReachTargetPrice(pool, isDirection0For1, multicallContract, priceTarget);
 
-    const expectedAmountOut = formatJSBI(amounts.amountOut, ETH_POLYGON.decimals);
-    console.log(`Amount In: ${formatJSBI(amounts.amountIn, USDC_POLYGON.decimals)} 
+    const assetIn = isDirection0For1 ? USDC_POLYGON : ETH_POLYGON;
+    const assetOut = isDirection0For1 ? ETH_POLYGON : USDC_POLYGON;
+    const expectedAmountOut = formatJSBI(amounts.amountOut, assetOut.decimals);
+    console.log(`Amount In: ${formatJSBI(amounts.amountIn, assetIn.decimals)} 
         Out: ${expectedAmountOut}`);
 
     const quoterContract = getContract(QUOTER_ADDRESS[SupportedExchanges.Uniswap], QuoterABI, provider) as Quoter;
     const parsedAmountIn = BigNumber.from(amounts.amountIn.toString());
-    const amountOut = await getParsedQuotedPrice(quoterContract, parsedAmountIn, USDC_POLYGON, ETH_POLYGON, FeeAmount.LOW);
+    const quoterAmountOutBN = await getParsedQuotedPrice(quoterContract, parsedAmountIn, assetIn, assetOut, FeeAmount.LOW);
+    const quoterAmountOut = JSBI.BigInt(quoterAmountOutBN.toString());
 
-    console.log(`expected amount out: ${expectedAmountOut}, result: ${formatPrice(amountOut, 18)}`);
+    const maxErrorPercent = 0; // set this to nonzero to allow some errors
+    if (!approximatelyEqual(amounts.amountOut, quoterAmountOut, maxErrorPercent)) {
+        console.log(`failed! Calculated amount out: ${expectedAmountOut}, quoter result: ${formatJSBI(quoterAmountOut, assetOut.decimals)}`);
+        return false;
+    }
+    console.log(`verified!\n`);
+    return true;
 }
 
 function formatJSBI(amount: JSBI, decimals: number) {
@@ -108,5 +128,25 @@ function formatPrice(amount: BigNumber, decimals: number) {
     return parseInt(amount.toHexString()) / Math.pow(10, decimals)
 }
 
+function approximatelyEqual(x: JSBI, y: JSBI, maxErrorPercent: number) {
+    const _100 = JSBI.BigInt(100);
+    const minY = JSBI.divide(JSBI.multiply(y, JSBI.BigInt(100 - maxErrorPercent)), _100);
+    if (JSBI.lessThan(x, minY)) {
+        return false;
+    }
+    const maxY = JSBI.divide(JSBI.multiply(y, JSBI.BigInt(100 + maxErrorPercent)), _100);
+    if (JSBI.greaterThan(x, maxY)) {
+        return false;
+    }
+    return true;
+}
+
+// not used for now
+function approximatelyEqualIgnoreSomeDigits(x: JSBI, y: JSBI, digits: number) {
+    const n = JSBI.BigInt(Math.pow(10, digits));
+    x = JSBI.divide(x, n);
+    y = JSBI.divide(y, n);
+    return JSBI.equal(x, y);
+}
 
 arbySearch();

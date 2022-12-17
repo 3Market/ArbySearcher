@@ -1,0 +1,23 @@
+1) Installation:
+
+- should come with a sort of README how to install and run, for now I just looked at package.json
+
+2) To run on forked localhost, at block number 36940000 - I use Alchemy, but Infura URL also could work.
+`alchemy_api` is an environmental variable here.
+
+$ npm install --save-dev hardhat
+$ npx hardhat node --fork https://polygon-mainnet.g.alchemyapi.io/v2/${alchemy_api} --fork-block-number 36940000
+
+Then in another window:
+$ export INFURA_URL_MAINNET=http://127.0.0.1:8545
+$ npm run arby-search
+
+It will be super slow the first time, but each following execution that uses the same calls to the same contracts will happen much faster, as the previously requested data is cached locally. If you get timeouts the first time you run it, just keep retrying a couple times.
+
+
+3) The logic of `volumeToReachTargetPrice` is correct, except that:
+ - the `feeAmount` was not added to the input amount (minor problem)
+ - the sign of the `liquidityNet` was inverted (major problem)
+
+
+4) I modified the function `verifyVolumeToReachTargetPrice` to also include `deltaTicks` parameter to show how much it should be shifted.

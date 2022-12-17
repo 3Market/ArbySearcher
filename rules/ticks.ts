@@ -100,25 +100,32 @@ export async function volumeToReachTargetPrice(pool: ExtendedPool, isDirection0F
     let nextTick = isDirection0For1 ? lowerTick : upperTick;
     //the tick range bounds should reflect the tick bound of the price inclusive to overflow
     let limitTick = isDirection0For1 ? tickRange.lowerTick : tickRange.upperTick;
-    console.log(`TL: ${lowerTick}, TU: ${upperTick}, TRL: ${tickRange.lowerTick} TRU: ${tickRange.upperTick}`);
+    console.log(`TC: ${pool.tickCurrent}, TL: ${lowerTick}, TU: ${upperTick}, TRL: ${tickRange.lowerTick} TRU: ${tickRange.upperTick}`);
     console.log(`is0For1: ${isDirection0For1} limit tick: ${limitTick}`);
 
     const direction = isDirection0For1 ? -1 : 1;
     while(nextTick != limitTick) {
         const nextPrice = getNextPrice(nextTick, isDirection0For1, sMaxPriceTarget); 
         const [sqrtPriceX96, amountIn, amountOut, feeAmount]
-            = SwapMath.computeSwapStep(sPriceCurrent, nextPrice, liquidity, MAX_UINT_256, pool.fee);
+              = SwapMath.computeSwapStep(sPriceCurrent, nextPrice, liquidity, MAX_UINT_256, pool.fee);
 
-        deltaTokenIn = JSBI.ADD(deltaTokenIn, amountIn);
+        //console.log(`amountIn=${amountIn} amountOut=${amountOut}`);
+        //console.log(`  currentTick=${TickMath.getTickAtSqrtRatio(sPriceCurrent)} nextTick=${TickMath.getTickAtSqrtRatio(nextPrice)} `);
+
+        deltaTokenIn = JSBI.ADD(JSBI.ADD(deltaTokenIn, amountIn), feeAmount);
         deltaTokenOut = JSBI.ADD(deltaTokenOut, amountOut);
 
         sPriceCurrent = sqrtPriceX96
-        let { liquidityNet } = tickToResponseMap[nextTick];
-        // if we're moving leftward, we interpret liquidityNet as the opposite sign
-        // safe because liquidityNet cannot be type(int128).min
-        // const normalizedLiquidityNet = JSBI.BigInt(isDirection0For1 ? '-' : '' + liquidityNet.toString())
-        const normalizedLiquidityNet = JSBI.BigInt(liquidityNet.toString())
+        const { liquidityNet } = tickToResponseMap[nextTick];
+        let normalizedLiquidityNet = JSBI.BigInt(liquidityNet.toString());
+        if (isDirection0For1) {
+            // if we're moving leftward, we interpret liquidityNet as the opposite sign
+            // safe because liquidityNet cannot be type(int128).min
+            normalizedLiquidityNet = JSBI.unaryMinus(normalizedLiquidityNet);
+        }
+
         liquidity = LiquidityMath.addDelta(liquidity, normalizedLiquidityNet);
+
         nextTick = nextTick + (tickSpacing * direction);
     }
     return { amountIn: deltaTokenIn, amountOut: deltaTokenOut }
