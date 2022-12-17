@@ -42,15 +42,15 @@ const arbySearch = async () => {
     //const pairs = buildPairs(PRIMARY_ARBITRAGE_ASSETS, [FeeAmount.LOWEST, FeeAmount.LOW, FeeAmount.MEDIUM, FeeAmount.HIGH]);
     const pairs = buildPairs([USDC_POLYGON, USDT_POLYGON, DAI_POLYGON, ETH_POLYGON], [FeeAmount.LOWEST, FeeAmount.LOW]);
 
-    console.log(pairs.length);
+    // console.log(pairs.length);
     
     const allPoolData = await getAvailableUniPools(pairs, tradeAmount, factoryAddress, provider);
     const availablePoolData = allPoolData.filter(x => x.isQuotable);
 
-    console.log(availablePoolData.length);
+    // console.log(availablePoolData.length);
 
     const poolAddresses = availablePoolData.map(x => x.poolAddress);
-    console.log('pool address: ' + poolAddresses);
+    // console.log('pool address: ' + poolAddresses);
 
     const multicallContract = getMulticallContract(multicallAddress, MulticallABI, provider);
 
@@ -58,26 +58,26 @@ const arbySearch = async () => {
     logPools(pools);
 
     const poolsWithliquidity = pools.filter(x => x.liquidity.toString() !== '0');
-    console.log(`num of pools with liquidity: ${poolsWithliquidity.length}`);
-    calculateSuperficialArbitrages(poolsWithliquidity);
+    // console.log(`num of pools with liquidity: ${poolsWithliquidity.length}`);
+    // calculateSuperficialArbitrages(poolsWithliquidity);
     
-    //logSlot0Data(slot0Response as MappedCallResponse<slot0Response>);
+    // //logSlot0Data(slot0Response as MappedCallResponse<slot0Response>);
 
-    const QUOTER_INTERFACE = new Interface(QuoterABI) as QuoterInterface
-    const quoterParams = getQuoterParams(availablePoolData, tradeAmount);
-    const quotesResponse = await singleContractMultipleValue<BigNumber>(multicallContract, quoterAddress, QUOTER_INTERFACE, 'quoteExactInputSingle', quoterParams)
-        .catch(err => console.log('quotes error:' + err))
+    // const QUOTER_INTERFACE = new Interface(QuoterABI) as QuoterInterface
+    // const quoterParams = getQuoterParams(availablePoolData, tradeAmount);
+    // const quotesResponse = await singleContractMultipleValue<BigNumber>(multicallContract, quoterAddress, QUOTER_INTERFACE, 'quoteExactInputSingle', quoterParams)
+    //     .catch(err => console.log('quotes error:' + err))
 
 
-    if(!(quotesResponse instanceof Object)) {
-        throw new Error('void quotes response');
-    }
-    //logQuotes(quotesResponse as MappedCallResponse<BigNumber>);
+    // if(!(quotesResponse instanceof Object)) {
+    //     throw new Error('void quotes response');
+    // }
+    // //logQuotes(quotesResponse as MappedCallResponse<BigNumber>);
 
-    //await getAllTicksForPool('0x45dda9cb7c25131df268515131f647d726f50608', multicallContract);
+    // //await getAllTicksForPool('0x45dda9cb7c25131df268515131f647d726f50608', multicallContract);
 
-    const priceMap = await fetchTokenPrices(PRIMARY_ARBITRAGE_ASSETS.map(x => x.address));
-    logTokenPrices(PRIMARY_ARBITRAGE_ASSETS, priceMap);
+    // const priceMap = await fetchTokenPrices(PRIMARY_ARBITRAGE_ASSETS.map(x => x.address));
+    // logTokenPrices(PRIMARY_ARBITRAGE_ASSETS, priceMap);
 
     const USDC_WETH_LOW_UNISWAP_POOL_ADDRESS = '0x45dda9cb7c25131df268515131f647d726f50608';
     const usdcWethPool = poolsWithliquidity.filter(x => x.poolAddress.toLowerCase() == USDC_WETH_LOW_UNISWAP_POOL_ADDRESS)[0]
@@ -111,7 +111,7 @@ async function verifyVolumeToReachTargetPrice(provider: JsonRpcProvider,
     const quoterAmountOutBN = await getParsedQuotedPrice(quoterContract, parsedAmountIn, assetIn, assetOut, FeeAmount.LOW);
     const quoterAmountOut = JSBI.BigInt(quoterAmountOutBN.toString());
 
-    const maxErrorPercent = 0; // set this to nonzero to allow some errors
+    const maxErrorPercent = 1; // set this to nonzero to allow some errors
     if (!approximatelyEqual(amounts.amountOut, quoterAmountOut, maxErrorPercent)) {
         console.log(`failed! Calculated amount out: ${expectedAmountOut}, quoter result: ${formatJSBI(quoterAmountOut, assetOut.decimals)}`);
         return false;
