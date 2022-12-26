@@ -2,7 +2,7 @@ import { BigNumber } from 'ethers';
 import { abi as IUniswapV3PoolStateABI } from '@uniswap/v3-core/artifacts/contracts/interfaces/pool/IUniswapV3PoolState.sol/IUniswapV3PoolState.json'
 import { abi as QuoterABI } from '@uniswap/v3-periphery/artifacts/contracts/lens/Quoter.sol/Quoter.json'
 import { abi as FactoryABI } from '@uniswap/v3-core/artifacts/contracts/interfaces/IUniswapV3Factory.sol/IUniswapV3Factory.json'
-import { computePoolAddress, FeeAmount, Pool, Tick, TickConstructorArgs, TickDataProvider } from '@uniswap/v3-sdk'
+import { ADDRESS_ZERO, computePoolAddress, FeeAmount, Pool, Tick, TickConstructorArgs, TickDataProvider } from '@uniswap/v3-sdk'
 import {  QUOTER_ADDRESS, SupportedExchanges } from "./constants";
 import { Interface } from 'ethers/lib/utils';
 import { IUniswapV3PoolStateInterface } from '../types/v3/v3-core/artifacts/contracts/interfaces/pool/IUniswapV3PoolState';
@@ -50,8 +50,6 @@ export const getPools = async(poolData: ExtendedPoolDetails[], multicallContract
     const liquiditiesResponse = await multipleContractSingleValue<[BigNumber]>(multicallContract, poolAddresses, POOL_STATE_INTERFACE, 'liquidity')
         .catch(err => console.log('Liquidity error:' + err)) as MappedCallResponse<[BigNumber]>
     
-    console.log('get pools');
-
     const s0length = slot0Response.returnData.length;
     const liquidityLength = liquiditiesResponse.returnData.length; 
     if(s0length != poolData.length) {
@@ -76,6 +74,36 @@ export const getPools = async(poolData: ExtendedPoolDetails[], multicallContract
     });
 }
 
+export async function getAvailableUniPools(pairs: PoolDetails[], tradeAmount: string, factoryAddress: string, provider: JsonRpcProvider) 
+    : Promise<ExtendedPoolDetails[]> {
+
+    const poolData = pairs.filter(p => !!p.feeAmount)
+    .map(p => {
+        return {
+        ...p,
+        poolAddress: computePoolAddress({factoryAddress: factoryAddress, tokenA: p.token0, tokenB: p.token1, fee: p.feeAmount ?? 0}),
+        exists: false
+        } as ExtendedPoolDetails
+    })
+
+    const quoterContract = getQuoterContract(QUOTER_ADDRESS[SupportedExchanges.Uniswap], QuoterABI, provider);
+    const quotePromises = poolData.map(data => {
+    const quote = getQuotedPrice(quoterContract, tradeAmount, data.token0, data.token1, data.feeAmount ?? 0)
+        .then(r =>{
+            data.exists = true;
+            return data; 
+        })
+        .catch(err => { 
+            console.log(`Pool is not Quotable: ${data.poolAddress}`)
+            data.exists = false
+            return data;
+        });
+        return quote;
+    })
+
+    return Promise.all(quotePromises);
+}
+
 export async function getAvailablePoolsFromFactory(pairs: PoolDetails[], multicallContract: UniswapInterfaceMulticall, factoryAddress: string, provider: JsonRpcProvider) 
      : Promise<ExtendedPoolDetails[]> {
 
@@ -84,15 +112,12 @@ export async function getAvailablePoolsFromFactory(pairs: PoolDetails[], multica
     const poolsResponse = await singleContractMultipleValue<string>(multicallContract, factoryAddress, V3_FACTORY_INTERFACE, 'getPool', params)
             .catch(err => console.log('error:' + err)) as MappedCallResponse<string>
 
-    //logPoolResponse(poolsResponse);
-
     return pairs.map((pair, i) => {
         const pool = poolsResponse.returnData[i];
         return {
             ...pair,
             exists: pool.success,
-            //We need to lower for some bs checksum reasons
-            poolAddress: pool.returnData.toString().toLowerCase()
+            poolAddress: pool.returnData[0]
         }
-    }).filter(x => x.exists);
+    }).filter(x => x.exists && x.poolAddress !== ADDRESS_ZERO)
 }

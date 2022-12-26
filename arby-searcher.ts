@@ -12,7 +12,7 @@ import { logPools } from './rules/logs';
 // import { getAvailableUniPools } from './rules/pool';
 import { getParsedQuotedPrice } from './rules/quoterRule';
 import type { JsonRpcProvider } from '@ethersproject/providers'
-import { ExtendedPool, getAvailablePoolsFromFactory, getPools } from './rules/pool';
+import { ExtendedPool, getAvailablePoolsFromFactory, getAvailableUniPools, getPools } from './rules/pool';
 import { UniswapInterfaceMulticall } from './types/v3/UniswapInterfaceMulticall';
 import { ArbitragePoolDetail, calculateSuperficialArbitrages, getArbitrageMapOrderOutputDesc, SuperficialArbDetails } from './rules/abitrage';
 import { volumeToReachTargetPrice } from './rules/ticks';
@@ -52,14 +52,21 @@ const arbySearch = async () => {
     //const pairs = buildPairs([USDC_POLYGON, USDT_POLYGON, DAI_POLYGON, ETH_POLYGON], [FeeAmount.LOWEST, FeeAmount.LOW]);
 
     // console.log(pairs.length);
-    const availablePoolData = await getAvailablePoolsFromFactory(pairs, multicallContract, factoryAddress, provider )
-    
-    console.log(availablePoolData);
+    const poolDetails = await getAvailablePoolsFromFactory(pairs, multicallContract, factoryAddress, provider )
 
+    console.log(poolDetails);
+    console.log(`initial pool detail length: ${poolDetails.length}`)
+
+    const allPoolData = await getAvailableUniPools(poolDetails, tradeAmount, factoryAddress, provider);
+    const availablePoolData = allPoolData.filter(x => x.exists);
     const pools = await getPools(availablePoolData, multicallContract);
     //logPools(pools);
 
+    pools.filter(x => x.liquidity.toString() === '0').forEach(p => console.log(`pool is quotable with 0 liquidity ${p.poolAddress}`));
+
+    console.log(`secondary pool detail length: ${availablePoolData.length}`)
     const poolsWithliquidity = pools.filter(x => x.liquidity.toString() !== '0');
+
     console.log(`num of pools with liquidity: ${poolsWithliquidity.length}`);
 
     const poolByTokenAddress = getArbitrageMapOrderOutputDesc(poolsWithliquidity);
