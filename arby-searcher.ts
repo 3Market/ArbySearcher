@@ -1,30 +1,23 @@
 import { BigNumber, ethers } from 'ethers';
 import { abi as MulticallABI } from '@uniswap/v3-periphery/artifacts/contracts/lens/UniswapInterfaceMulticall.sol/UniswapInterfaceMulticall.json'
 import { abi as QuoterABI } from '@uniswap/v3-periphery/artifacts/contracts/lens/Quoter.sol/Quoter.json'
-import { computePoolAddress, FeeAmount, Pool, TickMath } from '@uniswap/v3-sdk'
+import { FeeAmount, TickMath } from '@uniswap/v3-sdk'
 import { MULTICALL_ADDRESS, QUOTER_ADDRESS, SupportedExchanges, V3_CORE_FACTORY_ADDRESSES } from "./rules/constants";
-import { USDC_POLYGON, USDT_POLYGON, DAI_POLYGON, PRIMARY_ARBITRAGE_ASSETS, ETH_POLYGON } from "./rules/tokens";
+import { USDC_POLYGON, PRIMARY_ARBITRAGE_ASSETS, ETH_POLYGON } from "./rules/tokens";
 import env from 'dotenv'
-import { Interface } from 'ethers/lib/utils';
-import { MappedCallResponse, MethodArg, singleContractMultipleValue, multipleContractSingleValue } from './rules/mutlipleContractSingleData';
-import { slot0Response } from './rules/decodeResults';
-import { getContract, getMulticallContract, getQuoterContract } from './rules/getContract';
+import { getContract, getMulticallContract } from './rules/getContract';
 import { Quoter } from './types/v3/v3-periphery/artifacts/contracts/lens';
-import { format } from 'path';
-import { buildPairs, fetchQuickswapTokenlist, PairData } from './rules/pairsGenerator';
-import { logPools, logQuotes, logSlot0Data, logTokenPrices } from './rules/logs';
-import { QuoterInterface } from './types/v3/v3-periphery/artifacts/contracts/lens/Quoter';
+import { buildPairs } from './rules/pairsGenerator';
+import { logPools } from './rules/logs';
 // import { getAvailableUniPools } from './rules/pool';
-import { getParsedQuotedPrice, getQuotedPrice, getQuoterParams } from './rules/quoterRule';
+import { getParsedQuotedPrice } from './rules/quoterRule';
 import type { JsonRpcProvider } from '@ethersproject/providers'
-import { ExtendedPool, getAvailableUniPools, getPools, PoolData } from './rules/pool';
+import { ExtendedPool, getAvailableUniPools, getPools } from './rules/pool';
 import { UniswapInterfaceMulticall } from './types/v3/UniswapInterfaceMulticall';
 import { calculateSuperficialArbitrages, getArbitrageMapOrderOutputDesc, SuperficialArbDetails } from './rules/abitrage';
-import { getPoolContract, volumeToReachTargetPrice } from './rules/ticks';
-import { fetchTokenPrices } from './rules/prices';
+import { volumeToReachTargetPrice } from './rules/ticks';
 import JSBI from "jsbi";
 import { Fraction, Token } from '@uniswap/sdk-core';
-import { pool } from './types/v3/v3-core/artifacts/contracts/interfaces';
 
 env.config();
 
