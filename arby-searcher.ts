@@ -19,13 +19,26 @@ import { getParsedQuotedPrice, getQuotedPrice, getQuoterParams } from './rules/q
 import type { JsonRpcProvider } from '@ethersproject/providers'
 import { ExtendedPool, getAvailableUniPools, getPools, PoolData } from './rules/pool';
 import { UniswapInterfaceMulticall } from './types/v3/UniswapInterfaceMulticall';
-import { calculateSuperficialArbitrages } from './rules/abitrage';
+import { calculateSuperficialArbitrages, getArbitrageMapOrderOutputDesc, SuperficialArbDetails } from './rules/abitrage';
 import { getPoolContract, volumeToReachTargetPrice } from './rules/ticks';
 import { fetchTokenPrices } from './rules/prices';
 import JSBI from "jsbi";
-import { Fraction } from '@uniswap/sdk-core';
+import { Fraction, Token } from '@uniswap/sdk-core';
+import { pool } from './types/v3/v3-core/artifacts/contracts/interfaces';
 
 env.config();
+
+export interface ProfitableArbInfo {
+    token0: Token
+    token1: Token
+    poolAddresses: string[]
+    isReverse: boolean
+};
+
+export interface FormattedProfiableArb {
+    detail: SuperficialArbDetails,
+    pairInfo: ProfitableArbInfo[]
+}
 
 const arbySearch = async () => {
 
@@ -39,8 +52,11 @@ const arbySearch = async () => {
     //const tradableTokens = await fetchQuickswapTokenlist();
     //const pairs = buildPairs(tradableTokens, [FeeAmount.LOWEST, FeeAmount.LOW]);
 
-    //const pairs = buildPairs(PRIMARY_ARBITRAGE_ASSETS, [FeeAmount.LOWEST, FeeAmount.LOW, FeeAmount.MEDIUM, FeeAmount.HIGH]);
-    const pairs = buildPairs([USDC_POLYGON, USDT_POLYGON, DAI_POLYGON, ETH_POLYGON], [FeeAmount.LOWEST, FeeAmount.LOW]);
+    const tokenMap: {[key: string]: Token }= {} 
+    PRIMARY_ARBITRAGE_ASSETS.forEach(token => tokenMap[token.address] = token)
+
+    const pairs = buildPairs(PRIMARY_ARBITRAGE_ASSETS, [FeeAmount.LOWEST, FeeAmount.LOW, FeeAmount.MEDIUM, FeeAmount.HIGH]);
+    //const pairs = buildPairs([USDC_POLYGON, USDT_POLYGON, DAI_POLYGON, ETH_POLYGON], [FeeAmount.LOWEST, FeeAmount.LOW]);
 
     // console.log(pairs.length);
     
@@ -58,8 +74,42 @@ const arbySearch = async () => {
     logPools(pools);
 
     const poolsWithliquidity = pools.filter(x => x.liquidity.toString() !== '0');
-    // console.log(`num of pools with liquidity: ${poolsWithliquidity.length}`);
-    // calculateSuperficialArbitrages(poolsWithliquidity);
+    console.log(`num of pools with liquidity: ${poolsWithliquidity.length}`);
+
+    const poolByTokenAddress = getArbitrageMapOrderOutputDesc(poolsWithliquidity);
+    const profitableArbitrages = calculateSuperficialArbitrages(poolByTokenAddress);
+    
+    const formattedProfiableArbs: FormattedProfiableArb[] = [];
+
+    profitableArbitrages.forEach(info =>
+    {
+        const fullPath = [info.startingTokenAddress, ...info.path]
+        const pathPairInfo: ProfitableArbInfo[] = [];
+  
+        // can be done without the loop see here: https://stackoverflow.com/a/44161905
+        for(let x = 0; x < fullPath.length -1; x++)  {
+          const inputArb = poolByTokenAddress[fullPath[x]];
+          const outputArb = inputArb.outputMap[fullPath[x+1]];
+          const token0 = inputArb.inputToken;
+          const token1 = outputArb.outputToken;
+          const poolAddresses = outputArb.details.map(x => x.poolAddress)
+          const isReverse = outputArb.details[0].isReverse;
+           var arbInfo = {
+              token0,
+              token1,
+              poolAddresses,
+              isReverse
+           };
+           pathPairInfo.push(arbInfo)
+        }
+
+        formattedProfiableArbs.push({ detail: info, pairInfo: pathPairInfo  });
+        const displayPath = pathPairInfo.map(pair => pair.token1.symbol).join(' -> ');
+        const poolAddressDisplay = pathPairInfo.map(pair => `${pair.poolAddresses[0]} ${pair.isReverse}`).join(' ->');
+
+        console.log(`Arb input: ${ info.inputAmount.toSignificant(6) }, \x1b[32m output: ${info.outputAmount.toSignificant(6)} \x1b[0m from ${tokenMap[info.startingTokenAddress].symbol} -> ${displayPath}`);
+        console.log(`PoolAddress Info with direction: ${poolAddressDisplay}`)
+    })
     
     // //logSlot0Data(slot0Response as MappedCallResponse<slot0Response>);
 
@@ -79,17 +129,20 @@ const arbySearch = async () => {
     // const priceMap = await fetchTokenPrices(PRIMARY_ARBITRAGE_ASSETS.map(x => x.address));
     // logTokenPrices(PRIMARY_ARBITRAGE_ASSETS, priceMap);
 
-    const USDC_WETH_LOW_UNISWAP_POOL_ADDRESS = '0x45dda9cb7c25131df268515131f647d726f50608';
-    const usdcWethPool = poolsWithliquidity.filter(x => x.poolAddress.toLowerCase() == USDC_WETH_LOW_UNISWAP_POOL_ADDRESS)[0]
+    // const USDC_WETH_LOW_UNISWAP_POOL_ADDRESS = '0x45dda9cb7c25131df268515131f647d726f50608';
+    // const usdcWethPool = poolsWithliquidity.filter(x => x.poolAddress.toLowerCase() == USDC_WETH_LOW_UNISWAP_POOL_ADDRESS)[0]
 
-    await verifyVolumeToReachTargetPrice(provider, multicallContract, usdcWethPool, -10);
-    await verifyVolumeToReachTargetPrice(provider, multicallContract, usdcWethPool, +10);
+    // await verifyVolumeToReachTargetPrice(provider, multicallContract, usdcWethPool, -10);
+    // await verifyVolumeToReachTargetPrice(provider, multicallContract, usdcWethPool, +10);
 
-    await verifyVolumeToReachTargetPrice(provider, multicallContract, usdcWethPool, -100);
-    await verifyVolumeToReachTargetPrice(provider, multicallContract, usdcWethPool, +100);
+    // await verifyVolumeToReachTargetPrice(provider, multicallContract, usdcWethPool, -100);
+    // await verifyVolumeToReachTargetPrice(provider, multicallContract, usdcWethPool, +100);
 
-    await verifyVolumeToReachTargetPrice(provider, multicallContract, usdcWethPool, -1000);
-    await verifyVolumeToReachTargetPrice(provider, multicallContract, usdcWethPool, +1000);
+    // await verifyVolumeToReachTargetPrice(provider, multicallContract, usdcWethPool, -1000);
+    // await verifyVolumeToReachTargetPrice(provider, multicallContract, usdcWethPool, +1000);
+
+    // await verifyVolumeToReachTargetPrice(provider, multicallContract, usdcWethPool, -4000);
+    // await verifyVolumeToReachTargetPrice(provider, multicallContract, usdcWethPool, +4000);
 }
 
 async function verifyVolumeToReachTargetPrice(provider: JsonRpcProvider, 
@@ -110,6 +163,9 @@ async function verifyVolumeToReachTargetPrice(provider: JsonRpcProvider,
     const parsedAmountIn = BigNumber.from(amounts.amountIn.toString());
     const quoterAmountOutBN = await getParsedQuotedPrice(quoterContract, parsedAmountIn, assetIn, assetOut, FeeAmount.LOW);
     const quoterAmountOut = JSBI.BigInt(quoterAmountOutBN.toString());
+    
+    console.log(`Calculated amount in: ${parsedAmountIn} out: ${expectedAmountOut}, quoter result: ${formatJSBI(quoterAmountOut, assetOut.decimals)}`);
+    
 
     const maxErrorPercent = 1; // set this to nonzero to allow some errors
     if (!approximatelyEqual(amounts.amountOut, quoterAmountOut, maxErrorPercent)) {

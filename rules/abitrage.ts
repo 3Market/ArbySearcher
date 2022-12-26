@@ -19,6 +19,10 @@ export type Map<TValue> = {[key:string]:TValue }
 export type PathMap = Map<Map<Map<string[][]>>>
 export type FlattenedPathMap = Map<Map<string[][]>>
 export type CircuitMap = Map<string[][]>;
+export type CircuitPathDetail = {
+    poolAddress: string[],
+    isReverse: boolean,
+}
 
  interface ArbitrageInputNode {
     inputToken: Token
@@ -35,23 +39,25 @@ export type CircuitMap = Map<string[][]>;
     //pool: ExtendedPool
     liquidity: string
     outputAmount: Price<Token, Token>
+    isReverse: boolean
  }
 
-//Developer Note:
-// We have an array of pools each pool has T0 and T1,
-// T0 and T1 belong to a set {Tokens} however T0 may not have all the same tokens t1 has (0due to liquidity constraints)
-// 1. Pools with only 1 exit should be filtered out as leafs cannot be arbitraged
-// 2. Pools need to be aggregate into forwards and backwards paths
-// 3. Each pools should be store as a Dictionary, and each dictionary should contain an object with min and max heap of the (prices - fee)
-//       In the future this should support how much liquidity it would take to move the price to the next pool
-// 4. Calculating the optimal route.  
-//       Calculating the optimal route is an issue, since the aribtrage calcations are done on a backend server 
-//       the long it takes to calculate the aribtrage, the less probability that the arbitrage is still going 
-//       to be there when the transaction is executed.
-export function calculateSuperficialArbitrages(pools: ExtendedPool[]) {
+ // Gets superficail arbitrage amounts without weighing impact of liquidity
+ export interface SuperficialArbDetails {
+    startingTokenAddress: string,
+    path: string[],
+    inputAmount: CurrencyAmount<Token>
+    outputAmount: CurrencyAmount<Token>
+ }
 
-    const tokens = from(pools.flatMap(x => [x.token0, x.token1])).distinct().toArray();
-    const poolByTokenAddress = getArbitrageMapOrderOutputDesc(pools);
+ export interface ProfitableArbInfo {
+    token0: Token
+    token1: Token
+    poolAddresses: string[]
+    isReverse: boolean
+ };
+ 
+export function calculateSuperficialArbitrages(poolByTokenAddress: ArbitrageInputMap): SuperficialArbDetails[] {
     
     //logArbitrageMap(poolByTokenAddress);
     console.log('---------------------------------');
@@ -61,7 +67,8 @@ export function calculateSuperficialArbitrages(pools: ExtendedPool[]) {
 
     const arbCircuits = getCircuits(pathMap, poolByTokenAddress);
     logCircuits(arbCircuits);
-
+    
+    const profitableArbs: SuperficialArbDetails[] = [];
     Object.keys(arbCircuits).forEach(startingTokenAddress => {
         const paths = arbCircuits[startingTokenAddress];
         const startingToken = poolByTokenAddress[startingTokenAddress].inputToken
@@ -71,10 +78,19 @@ export function calculateSuperficialArbitrages(pools: ExtendedPool[]) {
             const arb = calculateArb(initialAmount, path, poolByTokenAddress);
             const arbPercent = arb.subtract(initialAmount).multiply(100); //.divide(initialAmount).multiply(100);
             if(arbPercent.greaterThan(0)) {
-                console.log (`Arb percent: ${arbPercent.toSignificant(4)} output: ${arb.toSignificant(18)} path: ${path.join('->')}`);
+                //console.log (`Arb percent: ${arbPercent.toSignificant(4)} output: ${arb.toSignificant(18)} path: ${path.join('->')}`);
+
+                profitableArbs.push({ 
+                    startingTokenAddress,  
+                    path: path, 
+                    inputAmount: initialAmount, 
+                    outputAmount: arb
+                })
             }
         });
     })
+
+    return profitableArbs;
 }
 
 export function calculateArb(amount: CurrencyAmount<Token>, route: string[], poolByTokenAddress: ArbitrageInputMap) {
@@ -173,10 +189,11 @@ function populateArbitrageDetails(map: ArbitrageInputMap, inputToken: Token, out
         //so to get the output amount is equvalent to the input tokens price
         //Ref: WMATIC-USDT:10000 t0 price: 0.93758 t1 price: 1.06658
         outputAmount: isReverse ? pool.token1Price : pool.token0Price,
+        isReverse: isReverse
     })
 }
 
-function getArbitrageMapOrderOutputDesc(pools: ExtendedPool[]) {
+export function getArbitrageMapOrderOutputDesc(pools: ExtendedPool[]) {
     const aribtrageMap: ArbitrageInputMap = pools.reduce((result: ArbitrageInputMap, currentValue) => {
 
         populateArbitrageDetails(result, currentValue.token0, currentValue.token1, currentValue, false);
