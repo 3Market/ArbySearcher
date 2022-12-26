@@ -21,3 +21,27 @@ It will be super slow the first time, but each following execution that uses the
 
 
 4) I modified the function `verifyVolumeToReachTargetPrice` to also include `deltaTicks` parameter to show how much it should be shifted.
+
+
+
+    //In order to calculate the appropraite amount we need to calucate the amount of volume it would take to move the output price to match the input
+    //e.g  The the following scenario:
+    //   1. You have a superficial arbitrage path ETH => USDC, USDC => BTC, BTC => ETH
+    //   2. With the outputs:  1 ETH => 1000 USDC, 1000 USDC => .05 BTC => .05 BTC => 1.1 ETH
+    // In order to perform the aribtrage we need to solve for the following problems:
+    //   How much input ETH volume would it take for the output ETH volume to converge price?
+    //   First we need to load the all ticks we need for the all of the pools, 
+    //   so we need to calculate the tick bounds for each pool in reverse
+    //   3. The tick bounds for the problems are as following, we grab from the current tick of the pool + tickspacing the direction we're going  
+    //   e.g at what tick will the will .05 BTC = 1 ETH
+    //       Once you have that tick you will need to calculate the next destination, so you will need to normalize the ratio back to its original form
+    //       e.g if .05 BTC outputs 1 ETH, then at that same rate what would output 1.1 ETH for this example lets just say its 
+    //               1.1/.05 = 22;
+    //               1/22 = .045454
+    //       Next we need to caulcate the rate for USDC-BTC previously 1000=>.5, now we need to calculate the ratio as increment to figureout the new ratio of usdc 
+    //       e.g  1000 / .05 = 20000
+    //       20000 * .045454 = 1300
+    //       The usdc bitcoin max ratio should now be 1300 for .5
+
+    //   so then the next problem is how much usdc needs to be put in to output .065 BTC
+    //

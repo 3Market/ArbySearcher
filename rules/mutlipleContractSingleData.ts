@@ -48,6 +48,46 @@ type OptionalMethodInputs =
     );
   }
   
+export function multipleContractMultipleValue<T>(
+    multicallContract: UniswapInterfaceMulticall,
+    addresses: (string)[],
+    contractInterface: Interface,
+    methodName: string,
+    callInputs: OptionalMethodInputs[]
+  ): Promise<MappedCallResponse<T>>  {
+    const fragment = contractInterface.getFunction(methodName);
+    
+    //TODO: This code was translated from react, where the state can be null
+    //TODO: verify whether we actually need to validate these properties
+    if(!fragment) {
+        throw new Error(`Invalid Fragment: '${fragment}'`)
+    }
+
+    const callDatas = callInputs.map(i => {
+      if(!isValidMethodArgs(i)) {
+        throw new Error(`Invalid Method Args: '${i}'`)
+      }
+      return contractInterface.encodeFunctionData(fragment, i);
+    });
+
+    const calls = addresses.map((address, i) => { return { target: address, callData: callDatas[i], gasLimit: BigNumber.from(DEFAULT_STATIC_CALL_GAS_REQUIRED) }});
+    const result = multicallContract.callStatic.multicall(calls).then(response => {
+        if(!(response instanceof Object)) {
+            return response
+        }
+
+        const clone: any = Object.assign({}, response);
+        clone.returnData = response.returnData.map(v => {
+            const vClone: any = Object.assign({}, v);
+            vClone.returnData = contractInterface.decodeFunctionResult(methodName, v.returnData);
+            return vClone;
+        });
+
+        return clone;
+    })
+
+    return result as Promise<MappedCallResponse<T>>;
+  }
 
 export function multipleContractSingleValue<T>(
     multicallContract: UniswapInterfaceMulticall,

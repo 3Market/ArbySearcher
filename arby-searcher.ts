@@ -12,12 +12,13 @@ import { logPools } from './rules/logs';
 // import { getAvailableUniPools } from './rules/pool';
 import { getParsedQuotedPrice } from './rules/quoterRule';
 import type { JsonRpcProvider } from '@ethersproject/providers'
-import { ExtendedPool, getAvailablePoolsFromFactory, getAvailableUniPools, getPools } from './rules/pool';
+import { ExtendedPool, filterPools, getAvailablePoolsFromFactory, getAvailableUniPools, getPools } from './rules/pool';
 import { UniswapInterfaceMulticall } from './types/v3/UniswapInterfaceMulticall';
 import { ArbitragePoolDetail, calculateSuperficialArbitrages, getArbitrageMapOrderOutputDesc, SuperficialArbDetails } from './rules/abitrage';
 import { volumeToReachTargetPrice } from './rules/ticks';
 import JSBI from "jsbi";
 import { Fraction, Token } from '@uniswap/sdk-core';
+import { fetchTokenPrices } from './rules/prices';
 
 env.config();
 
@@ -41,24 +42,29 @@ const arbySearch = async () => {
     const quoterAddress = QUOTER_ADDRESS[SupportedExchanges.Uniswap];
     const multicallContract = getMulticallContract(multicallAddress, MulticallABI, provider);
     const tradeAmount = "1";
-
+    const watchTokens = PRIMARY_ARBITRAGE_ASSETS;
+    const watchFees = [FeeAmount.LOWEST, FeeAmount.LOW, FeeAmount.MEDIUM, FeeAmount.HIGH];
     //const tradableTokens = await fetchQuickswapTokenlist();
     //const pairs = buildPairs(tradableTokens, [FeeAmount.LOWEST, FeeAmount.LOW]);
 
     const tokenMap: {[key: string]: Token }= {} 
     PRIMARY_ARBITRAGE_ASSETS.forEach(token => tokenMap[token.address] = token)
 
-    const pairs = buildPairs(PRIMARY_ARBITRAGE_ASSETS, [FeeAmount.LOWEST, FeeAmount.LOW, FeeAmount.MEDIUM, FeeAmount.HIGH]);
-    //const pairs = buildPairs([USDC_POLYGON, USDT_POLYGON, DAI_POLYGON, ETH_POLYGON], [FeeAmount.LOWEST, FeeAmount.LOW]);
+    const pairs = buildPairs(watchTokens, watchFees);
 
     // console.log(pairs.length);
-    const poolDetails = await getAvailablePoolsFromFactory(pairs, multicallContract, factoryAddress, provider )
+    let poolDetails = await getAvailablePoolsFromFactory(pairs, multicallContract, factoryAddress, provider )
 
-    console.log(poolDetails);
+    const priceMap = await fetchTokenPrices(watchTokens.map(x => x.address));
+    await filterPools(poolDetails, priceMap, multicallContract);
+
+    //If we failed to get a usdc price we do not want to filter the pool out as it potentially could have arbitrage opportunities
+    poolDetails = poolDetails.filter(x => ((x.token0BalanceUSD ?? 0 + (x.token1BalanceUSD ?? 0)) >= 100) || (x.token0BalanceUSD == undefined || x.token1BalanceUSD == undefined))
+
     console.log(`initial pool detail length: ${poolDetails.length}`)
 
     const allPoolData = await getAvailableUniPools(poolDetails, tradeAmount, factoryAddress, provider);
-    const availablePoolData = allPoolData.filter(x => x.exists);
+    const availablePoolData = allPoolData.filter(x => x.shouldInclude);
     const pools = await getPools(availablePoolData, multicallContract);
     //logPools(pools);
 
@@ -97,10 +103,12 @@ const arbySearch = async () => {
         const displayPath = pathPairInfo.map(pair => pair.token1.symbol).join(' -> ');
         const poolAddressDisplay = pathPairInfo.map(pair => `${pair.poolDetails[0].poolAddress } ${pair.poolDetails[0].isReverse}`).join(' -> ');
 
-        // console.log(`Arb input: ${ info.inputAmount.toSignificant(6) }, \x1b[32m output: ${info.outputAmount.toSignificant(6)} \x1b[0m from ${tokenMap[info.startingTokenAddress].symbol} -> ${displayPath}`);
-        // console.log(`PoolAddress Info with direction: ${poolAddressDisplay}`)
+        console.log(`Arb input: ${ info.inputAmount.toSignificant(6) }, \x1b[32m output: ${info.outputAmount.toSignificant(6)} \x1b[0m from ${tokenMap[info.startingTokenAddress].symbol} -> ${displayPath}`);
+        console.log(`PoolAddress Info with direction: ${poolAddressDisplay}`)
     })
     
+
+
     // //logSlot0Data(slot0Response as MappedCallResponse<slot0Response>);
 
     // const QUOTER_INTERFACE = new Interface(QuoterABI) as QuoterInterface

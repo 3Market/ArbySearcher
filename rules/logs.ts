@@ -49,8 +49,19 @@ export function logQuotes(quotes: MappedCallResponse<BigNumber>) {
     })
 }
 
+export function logBalances(quotes: MappedCallResponse<[BigNumber]>) {
+    console.log(`LOG BALANCES -----`)
+
+    console.log(`length: ${quotes.length}`)
+
+    console.log(`block number: ${quotes.blockNumber}`);
+    quotes.returnData.forEach(returnData => {
+        console.log(`success: ${returnData.success}`);
+        console.log(`return data: ${returnData.returnData}`);
+    })
+}
+
 export function logPoolResponse(pools: MappedCallResponse<string>) {
-    console.log(`LOG QUOTES -----`)
 
     console.log(`length: ${pools.length}`)
 
