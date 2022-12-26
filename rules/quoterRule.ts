@@ -2,9 +2,9 @@ import { Token } from "@uniswap/sdk-core";
 import { FeeAmount } from "@uniswap/v3-sdk";
 import { BigNumber, ethers } from "ethers";
 import { Quoter } from "../types/v3/v3-periphery/artifacts/contracts/lens/Quoter";
-import { PairData } from "./pairsGenerator";
+import { PoolDetails } from "./pairsGenerator";
 
-export function getQuoterParams(pairs: PairData[], tokenAmount: string) {
+export function getQuoterParams(pairs: PoolDetails[], tokenAmount: string) {
     return pairs.map(p => {
         //TODO: the token amount needs to be normalized do a dollar, this is for testing purposes
         const parsedAmountIn = ethers.utils.parseUnits(tokenAmount, p.token0.decimals);

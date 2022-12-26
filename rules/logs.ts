@@ -37,13 +37,25 @@ export function logCircuits(circuitMap: CircuitMap) {
     }  
   }
 
-export function logQuotes(slot0Data: MappedCallResponse<BigNumber>) {
+export function logQuotes(quotes: MappedCallResponse<BigNumber>) {
     console.log(`LOG QUOTES -----`)
 
-    console.log(`length: ${slot0Data.length}`)
+    console.log(`length: ${quotes.length}`)
 
-    console.log(`block number: ${slot0Data.blockNumber}`);
-    slot0Data.returnData.forEach(returnData => {
+    console.log(`block number: ${quotes.blockNumber}`);
+    quotes.returnData.forEach(returnData => {
+        console.log(`success: ${returnData.success}`);
+        console.log(`return data: ${returnData.returnData}`);
+    })
+}
+
+export function logPoolResponse(pools: MappedCallResponse<string>) {
+    console.log(`LOG QUOTES -----`)
+
+    console.log(`length: ${pools.length}`)
+
+    console.log(`block number: ${pools.blockNumber}`);
+    pools.returnData.forEach(returnData => {
         console.log(`success: ${returnData.success}`);
         console.log(`return data: ${returnData.returnData}`);
     })

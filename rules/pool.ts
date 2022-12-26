@@ -1,23 +1,26 @@
 import { BigNumber } from 'ethers';
 import { abi as IUniswapV3PoolStateABI } from '@uniswap/v3-core/artifacts/contracts/interfaces/pool/IUniswapV3PoolState.sol/IUniswapV3PoolState.json'
 import { abi as QuoterABI } from '@uniswap/v3-periphery/artifacts/contracts/lens/Quoter.sol/Quoter.json'
+import { abi as FactoryABI } from '@uniswap/v3-core/artifacts/contracts/interfaces/IUniswapV3Factory.sol/IUniswapV3Factory.json'
 import { computePoolAddress, FeeAmount, Pool, Tick, TickConstructorArgs, TickDataProvider } from '@uniswap/v3-sdk'
 import {  QUOTER_ADDRESS, SupportedExchanges } from "./constants";
 import { Interface } from 'ethers/lib/utils';
 import { IUniswapV3PoolStateInterface } from '../types/v3/v3-core/artifacts/contracts/interfaces/pool/IUniswapV3PoolState';
-import { MappedCallResponse, multipleContractSingleValue } from './mutlipleContractSingleData';
+import { MappedCallResponse, multipleContractSingleValue, singleContractMultipleValue } from './mutlipleContractSingleData';
 import { slot0Response } from './decodeResults';
 import { getQuoterContract } from './getContract';
-import { PairData } from './pairsGenerator';
+import { PoolDetails } from './pairsGenerator';
 // import { getAvailableUniPools } from './rules/pool';
 import { getQuotedPrice } from './quoterRule';
 import type { JsonRpcProvider } from '@ethersproject/providers'
 import { UniswapInterfaceMulticall } from '../types/v3/UniswapInterfaceMulticall';
 import { BigintIsh, sqrt, Token } from '@uniswap/sdk-core';
+import { IUniswapV3FactoryInterface } from '../types/v3/v3-core/artifacts/contracts/interfaces/IUniswapV3Factory';
+import { logPoolResponse } from './logs';
 
-export interface PoolData extends PairData {
+export interface ExtendedPoolDetails extends PoolDetails {
     poolAddress: string,
-    isQuotable: boolean,
+    exists: boolean,
 }
 
 export class ExtendedPool extends Pool {
@@ -36,7 +39,7 @@ export class ExtendedPool extends Pool {
     }
 }
 
-export const getPools = async(poolData: PoolData[], multicallContract: UniswapInterfaceMulticall) => {
+export const getPools = async(poolData: ExtendedPoolDetails[], multicallContract: UniswapInterfaceMulticall) => {
 
     const poolAddresses = poolData.map(p => p.poolAddress); 
     const POOL_STATE_INTERFACE = new Interface(IUniswapV3PoolStateABI) as IUniswapV3PoolStateInterface
@@ -73,32 +76,23 @@ export const getPools = async(poolData: PoolData[], multicallContract: UniswapIn
     });
 }
 
-export async function getAvailableUniPools(pairs: PairData[], tradeAmount: string, factoryAddress: string, provider: JsonRpcProvider) 
-    : Promise<PoolData[]> {
+export async function getAvailablePoolsFromFactory(pairs: PoolDetails[], multicallContract: UniswapInterfaceMulticall, factoryAddress: string, provider: JsonRpcProvider) 
+     : Promise<ExtendedPoolDetails[]> {
 
-    const poolData = pairs.filter(p => !!p.feeAmount)
-    .map(p => {
+    const V3_FACTORY_INTERFACE = new Interface(FactoryABI) as IUniswapV3FactoryInterface
+    const params = pairs.map(p => [p.token0.address, p.token1.address, p.feeAmount?.toString()])
+    const poolsResponse = await singleContractMultipleValue<string>(multicallContract, factoryAddress, V3_FACTORY_INTERFACE, 'getPool', params)
+            .catch(err => console.log('error:' + err)) as MappedCallResponse<string>
+
+    //logPoolResponse(poolsResponse);
+
+    return pairs.map((pair, i) => {
+        const pool = poolsResponse.returnData[i];
         return {
-        ...p,
-        poolAddress: computePoolAddress({factoryAddress: factoryAddress, tokenA: p.token0, tokenB: p.token1, fee: p.feeAmount ?? 0}),
-        isQuotable: false
-        } as PoolData
-    })
-
-    const quoterContract = getQuoterContract(QUOTER_ADDRESS[SupportedExchanges.Uniswap], QuoterABI, provider);
-    const quotePromises = poolData.map(data => {
-    const dataEnclosure = data;
-    const quote = getQuotedPrice(quoterContract, tradeAmount, data.token0, data.token1, data.feeAmount ?? 0)
-        .then(r =>{
-            dataEnclosure.isQuotable = true;
-            return dataEnclosure; 
-        })
-        .catch(err => { 
-            dataEnclosure.isQuotable = false
-            return dataEnclosure;
-        });
-        return quote;
-    })
-
-    return Promise.all(quotePromises);
+            ...pair,
+            exists: pool.success,
+            //We need to lower for some bs checksum reasons
+            poolAddress: pool.returnData.toString().toLowerCase()
+        }
+    }).filter(x => x.exists);
 }

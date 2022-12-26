@@ -12,9 +12,9 @@ import { logPools } from './rules/logs';
 // import { getAvailableUniPools } from './rules/pool';
 import { getParsedQuotedPrice } from './rules/quoterRule';
 import type { JsonRpcProvider } from '@ethersproject/providers'
-import { ExtendedPool, getAvailableUniPools, getPools } from './rules/pool';
+import { ExtendedPool, getAvailablePoolsFromFactory, getPools } from './rules/pool';
 import { UniswapInterfaceMulticall } from './types/v3/UniswapInterfaceMulticall';
-import { calculateSuperficialArbitrages, getArbitrageMapOrderOutputDesc, SuperficialArbDetails } from './rules/abitrage';
+import { ArbitragePoolDetail, calculateSuperficialArbitrages, getArbitrageMapOrderOutputDesc, SuperficialArbDetails } from './rules/abitrage';
 import { volumeToReachTargetPrice } from './rules/ticks';
 import JSBI from "jsbi";
 import { Fraction, Token } from '@uniswap/sdk-core';
@@ -24,8 +24,7 @@ env.config();
 export interface ProfitableArbInfo {
     token0: Token
     token1: Token
-    poolAddresses: string[]
-    isReverse: boolean
+    poolDetails: ArbitragePoolDetail[]
 };
 
 export interface FormattedProfiableArb {
@@ -40,6 +39,7 @@ const arbySearch = async () => {
     const factoryAddress = V3_CORE_FACTORY_ADDRESSES[SupportedExchanges.Uniswap];
     const multicallAddress = MULTICALL_ADDRESS[SupportedExchanges.Uniswap];
     const quoterAddress = QUOTER_ADDRESS[SupportedExchanges.Uniswap];
+    const multicallContract = getMulticallContract(multicallAddress, MulticallABI, provider);
     const tradeAmount = "1";
 
     //const tradableTokens = await fetchQuickswapTokenlist();
@@ -52,19 +52,12 @@ const arbySearch = async () => {
     //const pairs = buildPairs([USDC_POLYGON, USDT_POLYGON, DAI_POLYGON, ETH_POLYGON], [FeeAmount.LOWEST, FeeAmount.LOW]);
 
     // console.log(pairs.length);
+    const availablePoolData = await getAvailablePoolsFromFactory(pairs, multicallContract, factoryAddress, provider )
     
-    const allPoolData = await getAvailableUniPools(pairs, tradeAmount, factoryAddress, provider);
-    const availablePoolData = allPoolData.filter(x => x.isQuotable);
-
-    // console.log(availablePoolData.length);
-
-    const poolAddresses = availablePoolData.map(x => x.poolAddress);
-    // console.log('pool address: ' + poolAddresses);
-
-    const multicallContract = getMulticallContract(multicallAddress, MulticallABI, provider);
+    console.log(availablePoolData);
 
     const pools = await getPools(availablePoolData, multicallContract);
-    logPools(pools);
+    //logPools(pools);
 
     const poolsWithliquidity = pools.filter(x => x.liquidity.toString() !== '0');
     console.log(`num of pools with liquidity: ${poolsWithliquidity.length}`);
@@ -85,23 +78,20 @@ const arbySearch = async () => {
           const outputArb = inputArb.outputMap[fullPath[x+1]];
           const token0 = inputArb.inputToken;
           const token1 = outputArb.outputToken;
-          const poolAddresses = outputArb.details.map(x => x.poolAddress)
-          const isReverse = outputArb.details[0].isReverse;
-           var arbInfo = {
+          const arbInfo = {
               token0,
               token1,
-              poolAddresses,
-              isReverse
+              poolDetails: outputArb.details
            };
            pathPairInfo.push(arbInfo)
         }
 
         formattedProfiableArbs.push({ detail: info, pairInfo: pathPairInfo  });
         const displayPath = pathPairInfo.map(pair => pair.token1.symbol).join(' -> ');
-        const poolAddressDisplay = pathPairInfo.map(pair => `${pair.poolAddresses[0]} ${pair.isReverse}`).join(' ->');
+        const poolAddressDisplay = pathPairInfo.map(pair => `${pair.poolDetails[0].poolAddress } ${pair.poolDetails[0].isReverse}`).join(' -> ');
 
-        console.log(`Arb input: ${ info.inputAmount.toSignificant(6) }, \x1b[32m output: ${info.outputAmount.toSignificant(6)} \x1b[0m from ${tokenMap[info.startingTokenAddress].symbol} -> ${displayPath}`);
-        console.log(`PoolAddress Info with direction: ${poolAddressDisplay}`)
+        // console.log(`Arb input: ${ info.inputAmount.toSignificant(6) }, \x1b[32m output: ${info.outputAmount.toSignificant(6)} \x1b[0m from ${tokenMap[info.startingTokenAddress].symbol} -> ${displayPath}`);
+        // console.log(`PoolAddress Info with direction: ${poolAddressDisplay}`)
     })
     
     // //logSlot0Data(slot0Response as MappedCallResponse<slot0Response>);

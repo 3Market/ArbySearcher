@@ -34,7 +34,7 @@ export type CircuitPathDetail = {
     details: ArbitragePoolDetail[]
  }
 
- interface ArbitragePoolDetail {
+ export interface ArbitragePoolDetail {
     poolAddress: string
     //pool: ExtendedPool
     liquidity: string
@@ -66,7 +66,7 @@ export function calculateSuperficialArbitrages(poolByTokenAddress: ArbitrageInpu
     //logPathMap(pathMap);
 
     const arbCircuits = getCircuits(pathMap, poolByTokenAddress);
-    logCircuits(arbCircuits);
+    //logCircuits(arbCircuits);
     
     const profitableArbs: SuperficialArbDetails[] = [];
     Object.keys(arbCircuits).forEach(startingTokenAddress => {
@@ -151,7 +151,7 @@ export function buildPathMap(poolByTokenAddress: ArbitrageInputMap,  maxDepth: n
                     pathMap[inputKey][neighbor][i] = pathMap[inputKey][neighbor][i] || [];
                     const newPath = previousPaths.slice(0);
                     newPath.push(neighbor);
-                    console.log(`\t Path: ${newPath.join('->')}`);
+                    //console.log(`\t Path: ${newPath.join('->')}`);
                     pathMap[inputKey][neighbor][i].push(newPath);
                 }
             }

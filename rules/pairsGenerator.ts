@@ -2,7 +2,7 @@ import { SupportedChainId, Token } from "@uniswap/sdk-core";
 import { FeeAmount } from "@uniswap/v3-sdk";
 import _ from "lodash";
 
-export interface PairData {
+export interface PoolDetails {
     name: string,
     token0: Token,
     token1: Token,
@@ -31,7 +31,7 @@ export function buildPairs(tokens: Token[], feeAmounts: FeeAmount[]) {
 
 function combineAllPairs(tokens: Token[], feeAmounts: FeeAmount[]) {
     const sortedTokens = _.orderBy(tokens, 'address', 'asc');
-    const pairs: PairData[] = [];
+    const pairs: PoolDetails[] = [];
     for(let feeAmount of feeAmounts)
         for(let i = 0; i < sortedTokens.length; i++) {
             for(let j = i + 1; j < sortedTokens.length; j++) {
