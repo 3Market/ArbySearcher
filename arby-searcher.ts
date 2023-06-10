@@ -13,12 +13,12 @@ import { logPools } from './rules/logs';
 import { getParsedQuotedPrice } from './rules/quoterRule';
 import type { JsonRpcProvider } from '@ethersproject/providers'
 import { ExtendedPool, filterPools, getAvailablePoolsFromFactory, getAvailableUniPools, getPools } from './rules/pool';
-import { UniswapInterfaceMulticall } from './types/v3/UniswapInterfaceMulticall';
 import { ArbitragePoolDetail, calculateSuperficialArbitrages, getArbitrageMapOrderOutputDesc, SuperficialArbDetails } from './rules/abitrage';
 import { volumeToReachTargetPrice } from './rules/ticks';
 import JSBI from "jsbi";
 import { Fraction, Token } from '@uniswap/sdk-core';
 import { fetchTokenPrices } from './rules/prices';
+import { UniswapInterfaceMulticall } from './types/v3';
 
 env.config();
 

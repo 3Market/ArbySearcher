@@ -4,7 +4,6 @@ import { IUniswapV3PoolState, IUniswapV3PoolStateInterface } from "../types/v3/v
 import { slot0Response, TickResponse } from "./decodeResults";
 import { MappedCallResponse, singleContractMultipleValue } from "./mutlipleContractSingleData";
 import { abi as IUniswapV3PoolStateABI } from '@uniswap/v3-core/artifacts/contracts/interfaces/pool/IUniswapV3PoolState.sol/IUniswapV3PoolState.json'
-import { UniswapInterfaceMulticall } from '../types/v3/UniswapInterfaceMulticall';
 import { logTickResponse } from "./logs";
 import { BigNumber } from "ethers";
 import { CurrencyAmount, Token } from "@uniswap/sdk-core";
@@ -13,6 +12,7 @@ import { ExtendedPool } from "./pool";
 import { getContract } from "./getContract";
 import type { JsonRpcProvider } from '@ethersproject/providers'
 import JSBI from "jsbi";
+import { UniswapInterfaceMulticall } from "../types/v3";
 
 const MAX_UINT_256 = JSBI.BigInt("115792089237316195423570985008687907853269984665640564039457584007913129639935");
 const POOL_STATE_INTERFACE = new Interface(IUniswapV3PoolStateABI) as IUniswapV3PoolStateInterface

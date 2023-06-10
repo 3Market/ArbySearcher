@@ -15,13 +15,13 @@ import { PoolDetails } from './pairsGenerator';
 // import { getAvailableUniPools } from './rules/pool';
 import { getQuotedPrice } from './quoterRule';
 import type { JsonRpcProvider } from '@ethersproject/providers'
-import { UniswapInterfaceMulticall } from '../types/v3/UniswapInterfaceMulticall';
 import { BigintIsh, CurrencyAmount, Price, sqrt, Token } from '@uniswap/sdk-core';
 import { IUniswapV3FactoryInterface } from '../types/v3/v3-core/artifacts/contracts/interfaces/IUniswapV3Factory';
 import { logBalances, logPoolResponse } from './logs';
 import { pick } from 'lodash';
 import JSBI from 'jsbi';
 import { USDC_POLYGON } from './tokens';
+import { UniswapInterfaceMulticall } from '../types/v3';
 
 export interface ExtendedPoolDetails extends PoolDetails {
     poolAddress: string,

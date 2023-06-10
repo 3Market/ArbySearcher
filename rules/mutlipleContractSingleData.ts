@@ -1,8 +1,8 @@
 import { BigNumber } from "ethers";
 import { Interface } from "ethers/lib/utils"
 import { Call } from './utils';
-import { UniswapInterfaceMulticall } from "../types/v3/UniswapInterfaceMulticall";
 import { resolve } from "path";
+import { UniswapInterfaceMulticall } from "../types/v3";
 
 //Note: Multicall will throw an error if the contract call exceeds the expected provisioned gas required
 // so we jack the number up insanely high to assure execution
@@ -137,21 +137,22 @@ export function singleContractMultipleValue<T>(
   callInputs: OptionalMethodInputs[] = [undefined]
 ) : Promise<MappedCallResponse<T>> {
 
+  //Use Ethers to get the fragmented function
   const fragment = contractInterface.getFunction(methodName);
-  
-  //TODO: This code was translated from react, where the state can be null
-  //TODO: verify whether we actually need to validate these properties
   if(!fragment) {
       throw new Error(`Invalid Fragment: '${fragment}'`)
   }
 
+  // This will validate we're passing valid method arguments
   const callDatas = callInputs.map(i => {
+
     if(!isValidMethodArgs(i)) {
       throw new Error(`Invalid Method Args: '${i}'`)
     }
     return contractInterface.encodeFunctionData(fragment, i);
   });
 
+  // We construct the call data for our example we're using the same call data for eac
   const calls = callDatas.map((callData, i) => { return { target: address, callData, gasLimit: BigNumber.from(DEFAULT_STATIC_CALL_GAS_REQUIRED) }});
   const result = multicallContract.callStatic.multicall(calls).then(response => {
       if(!(response instanceof Object)) {

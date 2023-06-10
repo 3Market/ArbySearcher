@@ -3,7 +3,7 @@ import { Contract } from '@ethersproject/contracts';
 import { AddressZero } from '@ethersproject/constants'
 import type { JsonRpcProvider, JsonRpcSigner } from '@ethersproject/providers'
 
-import { UniswapInterfaceMulticall } from "../types/v3/UniswapInterfaceMulticall";
+import { UniswapInterfaceMulticall } from "../types/v3";
 import { Quoter } from "../types/v3/v3-periphery/artifacts/contracts/lens";
 
 
